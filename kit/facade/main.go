@@ -260,7 +260,7 @@ func (p *pkgInfo) carries(e ast.Expr) bool {
 		case *ast.SelectorExpr:
 			if id, isID := x.X.(*ast.Ident); isID {
 				switch id.Name + "." + x.Sel.Name {
-				case "time.Time", "time.Duration", "json.RawMessage":
+				case "time.Time", "time.Duration", "json.RawMessage", "net.IP", "net.HardwareAddr":
 				case "context.Context":
 				default:
 					// Another package of this module is fine; anything else is for a person.
