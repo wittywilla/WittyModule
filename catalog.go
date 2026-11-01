@@ -33,6 +33,10 @@ const CatalogFormat = 1
 const (
 	// CatalogName is the catalogue's file; its signature adds .sig.
 	CatalogName = "catalog.json"
+	// CatalogKeyName is the public key a store offers beside its catalogue, in base64. It is
+	// only ever a suggestion for the first time an admin adds the store: from then on the key
+	// that was agreed to is the one that counts, and a different one here is a refusal.
+	CatalogKeyName = CatalogName + ".key"
 	// PlatformAll is the one platform of a web bundle.
 	PlatformAll = "all"
 	// MaxCatalog is the largest catalogue a reader takes, checked before reading it all.
@@ -46,6 +50,8 @@ const (
 	maxCatalogLong     = 16 << 10 // a description, or one version's changelog
 	maxCatalogURL      = 2048
 	maxIcon            = 256 << 10
+	maxScreenshots     = 8
+	maxScreenshot      = 2 << 20
 )
 
 // CatalogFile is one downloadable file, with what it must turn out to be.
@@ -102,6 +108,9 @@ type CatalogModule struct {
 	Summary     string       `json:"summary"`               // a line
 	Description string       `json:"description,omitempty"` // plain text
 	Icon        *CatalogFile `json:"icon,omitempty"`        // PNG, at most 256 KiB; never a brand's logo
+	// Screenshots are PNG or JPEG pictures of the module at work, at most 8 of 2 MiB each. They
+	// are fetched by the server when someone opens the module's page, and served from there.
+	Screenshots []CatalogFile `json:"screenshots,omitempty"`
 	Publisher   Publisher    `json:"publisher"`
 	Repo        string       `json:"repo"` // owner/name on GitHub, where its source and releases are
 	Group       string       `json:"group,omitempty"`
@@ -240,6 +249,14 @@ func (m *CatalogModule) validate() error {
 	if m.Icon != nil {
 		if err := m.Icon.validate(maxIcon); err != nil {
 			return fmt.Errorf("%s: its icon: %w", m.ID, err)
+		}
+	}
+	if len(m.Screenshots) > maxScreenshots {
+		return fmt.Errorf("%s: more than %d screenshots", m.ID, maxScreenshots)
+	}
+	for i := range m.Screenshots {
+		if err := m.Screenshots[i].validate(maxScreenshot); err != nil {
+			return fmt.Errorf("%s: a screenshot: %w", m.ID, err)
 		}
 	}
 	for _, s := range append(slices.Clone(m.Libraries), m.Requires...) {

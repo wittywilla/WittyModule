@@ -78,6 +78,18 @@ func TestCatalogRefusals(t *testing.T) {
 		"bad withdrawal": func(c *Catalog) {
 			c.Modules[0].Versions[0].Withdrawn = &CatalogWithdrawn{Severity: "maybe", Reason: "x"}
 		},
+		"too many screenshots": func(c *Catalog) {
+			c.Modules[0].Screenshots = make([]CatalogFile, 9)
+			for i := range c.Modules[0].Screenshots {
+				c.Modules[0].Screenshots[i] = CatalogFile{URL: "a.png", Size: 1, SHA256: strings.Repeat("a", 64)}
+			}
+		},
+		"screenshot too big": func(c *Catalog) {
+			c.Modules[0].Screenshots = []CatalogFile{{URL: "a.png", Size: 3 << 20, SHA256: strings.Repeat("a", 64)}}
+		},
+		"screenshot from elsewhere": func(c *Catalog) {
+			c.Modules[0].Screenshots = []CatalogFile{{URL: "http://example.test/a.png", Size: 1, SHA256: strings.Repeat("a", 64)}}
+		},
 	} {
 		c := testCatalog()
 		c.Modules[0].Versions[0].Platforms = map[string]CatalogFile{"linux-amd64": c.Modules[0].Versions[0].Platforms["linux-amd64"]}
