@@ -516,6 +516,10 @@ func stubs(cfg Config, p *pkgInfo, all map[string]*pkgInfo, cases, sentinels *by
 		if !exported(fd.Name.Name) || p.manual[name] || p.local[name] {
 			continue
 		}
+		// How a value is written is the wire's own business: a stub of this would call itself.
+		if fd.Recv != nil && (fd.Name.Name == "MarshalJSON" || fd.Name.Name == "UnmarshalJSON") {
+			continue
+		}
 		recv := ""
 		if fd.Recv != nil {
 			recv = recvName(fd)
