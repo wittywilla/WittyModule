@@ -51,6 +51,7 @@ func main() {
 	targets := fs.String("targets", "", "platforms to build, such as linux/amd64,windows/amd64 (default: all)")
 	key := fs.String("key", defaultKey(), "private key file")
 	web := fs.String("web", "", "pack this built web bundle instead of building programs")
+	prebuilt := fs.String("prebuilt", "", "for pack: a folder of programs built some other way, named <entry>-<goos>-<goarch>; a system with none there is left out")
 	gcflagsFreeBSD := fs.String("freebsd-gcflags", "", "-gcflags for the FreeBSD builds, which some cgo-free libraries need")
 	list := fs.String("list", "", "the list of withdrawn versions")
 	module := fs.String("module", "", "the plugin the list is for, when starting a new list")
@@ -76,7 +77,7 @@ func main() {
 		if *web != "" && webOnly(fs.Args()) {
 			err = packWeb(fs.Args(), *out, *web)
 		} else {
-			err = pack(fs.Args(), *out, *targets, *gcflagsFreeBSD, *web)
+			err = pack(fs.Args(), *out, *targets, *gcflagsFreeBSD, *web, *prebuilt)
 		}
 	case "sign":
 		err = sign(*key, *expect, fs.Args())
@@ -110,6 +111,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, `usage:
   wittymodule check [-server version] <folder>...
   wittymodule pack [-out dir] [-targets list] [-freebsd-gcflags flags] <folder>
+  wittymodule pack [-out dir] -prebuilt <folder of programs> <folder>
   wittymodule pack [-out dir] -web <built folder> <folder>
   wittymodule sign [-key file] <file>
   wittymodule keygen -key file
@@ -215,7 +217,7 @@ func webOnly(dirs []string) bool {
 	return err != nil || !m.PerPlatform()
 }
 
-func pack(dirs []string, out, targets, gcflagsFreeBSD, built string) error {
+func pack(dirs []string, out, targets, gcflagsFreeBSD, built, prebuilt string) error {
 	if len(dirs) != 1 {
 		return errors.New("which folder? wittymodule pack <folder>")
 	}
@@ -259,6 +261,11 @@ func pack(dirs []string, out, targets, gcflagsFreeBSD, built string) error {
 			list = append(list, wittymodule.Target{GOOS: goos, GOARCH: goarch})
 		}
 	}
+	if prebuilt != "" {
+		if list = prebuiltTargets(m, prebuilt, list); len(list) == 0 {
+			return fmt.Errorf("%s holds no %s for any of those systems", prebuilt, prebuiltName(m, wittymodule.Target{GOOS: "<goos>", GOARCH: "<goarch>"}))
+		}
+	}
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		return err
 	}
@@ -274,7 +281,9 @@ func pack(dirs []string, out, targets, gcflagsFreeBSD, built string) error {
 	for _, t := range list {
 		fmt.Println("building", m.ID, m.Version, t.GOOS+"/"+t.GOARCH)
 		exe := filepath.Join(work, t.GOOS+"-"+t.GOARCH)
-		if err := build(dir, m.Entry, t, exe, gcflagsFreeBSD); err != nil {
+		if prebuilt != "" {
+			exe = filepath.Join(prebuilt, prebuiltName(m, t))
+		} else if err := build(dir, m.Entry, t, exe, gcflagsFreeBSD); err != nil {
 			return err
 		}
 		files := map[string][]byte{}
@@ -293,10 +302,13 @@ func pack(dirs []string, out, targets, gcflagsFreeBSD, built string) error {
 		for name, b := range webFiles {
 			files["web/"+name] = b
 		}
-		if b, err := thirdParty(dir, t.GOOS); err != nil {
-			return err
-		} else if len(b) > 0 {
-			files[wittymodule.NoticesFile] = b
+		// A program built some other way carries what it was built from in its NOTICE.
+		if prebuilt == "" {
+			if b, err := thirdParty(dir, t.GOOS); err != nil {
+				return err
+			} else if len(b) > 0 {
+				files[wittymodule.NoticesFile] = b
+			}
 		}
 		for _, name := range []string{wittymodule.ManifestFile, "LICENSE", "NOTICE", "README.md"} {
 			if b, err := os.ReadFile(filepath.Join(dir, name)); err == nil {
@@ -323,6 +335,27 @@ func pack(dirs []string, out, targets, gcflagsFreeBSD, built string) error {
 		sums[archive] = hash(b)
 	}
 	return writeSums(out, m, sums)
+}
+
+// prebuiltName is what a program built some other way is called for one system.
+func prebuiltName(m *wittymodule.Manifest, t wittymodule.Target) string {
+	ext := ""
+	if t.GOOS == "windows" {
+		ext = ".exe"
+	}
+	return m.Entry + "-" + t.GOOS + "-" + t.GOARCH + ext
+}
+
+// prebuiltTargets keeps the systems a program was built for. One written in something else may
+// not reach them all, and a server with no build says so plainly.
+func prebuiltTargets(m *wittymodule.Manifest, dir string, list []wittymodule.Target) []wittymodule.Target {
+	var out []wittymodule.Target
+	for _, t := range list {
+		if st, err := os.Stat(filepath.Join(dir, prebuiltName(m, t))); err == nil && st.Mode().IsRegular() {
+			out = append(out, t)
+		}
+	}
+	return out
 }
 
 var licenseFile = regexp.MustCompile(`(?i)^(licen[cs]e|copying|notice)([._-].*)?$`)

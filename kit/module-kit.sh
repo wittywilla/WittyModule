@@ -174,7 +174,8 @@ To take a version back, run the *withdraw* workflow from the *Actions* tab. It a
 
   mkdir -p "$gen"
   render "$templates/ci.yml" "$gen/ci.yml"
-  render "$templates/release.yml" "$gen/release.yml"
+  # A program built with something other than Go keeps its own build, and packs what that made.
+  [ -f "$dir/CMakeLists.txt" ] || render "$templates/release.yml" "$gen/release.yml"
   case " $words " in
     *" signed "*) render "$templates/withdraw.yml" "$gen/withdraw.yml" ;;
     *) rm -f "$gen/withdraw.yml" ;;
