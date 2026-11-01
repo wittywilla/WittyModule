@@ -119,3 +119,27 @@ func TestWireTooDeep(t *testing.T) {
 		t.Fatal("no error")
 	}
 }
+
+// An embedded struct's fields are written as the struct's own, whatever embeds it on the other side.
+func TestWireEmbedded(t *testing.T) {
+	type holder struct {
+		wireInner
+		Extra []string
+	}
+	raw, err := Marshal(holder{wireInner: wireInner{Name: "n", Hidden: true}, Extra: []string{"e"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var flat struct {
+		Name   string
+		Hidden bool
+		Extra  []string
+	}
+	if err := Unmarshal(raw, &flat); err != nil || flat.Name != "n" || !flat.Hidden || len(flat.Extra) != 1 {
+		t.Fatalf("%+v %v %s", flat, err, raw)
+	}
+	var back holder
+	if err := Unmarshal(raw, &back); err != nil || back.Name != "n" || !back.Hidden {
+		t.Fatalf("%+v %v", back, err)
+	}
+}

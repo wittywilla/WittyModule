@@ -125,21 +125,8 @@ func write(b *bytes.Buffer, v reflect.Value, depth int) error {
 	case reflect.Struct:
 		b.WriteByte('{')
 		first := true
-		for i := range t.NumField() {
-			f := t.Field(i)
-			if !travels(f) {
-				continue
-			}
-			if !first {
-				b.WriteByte(',')
-			}
-			first = false
-			name, _ := json.Marshal(f.Name)
-			b.Write(name)
-			b.WriteByte(':')
-			if err := write(b, v.Field(i), depth+1); err != nil {
-				return err
-			}
+		if err := writeFields(b, v, &first, depth); err != nil {
+			return err
 		}
 		b.WriteByte('}')
 		return nil
@@ -192,6 +179,68 @@ func write(b *bytes.Buffer, v reflect.Value, depth int) error {
 		return nil
 	}
 	return viaJSON(b, v.Interface())
+}
+
+// flattened says whether a field's fields are written as if they were the struct's own, as JSON does
+// with an embedded struct.
+func flattened(f reflect.StructField) bool {
+	return f.Anonymous && f.Type.Kind() == reflect.Struct && !leaf(f.Type)
+}
+
+func writeFields(b *bytes.Buffer, v reflect.Value, first *bool, depth int) error {
+	t := v.Type()
+	for i := range t.NumField() {
+		f := t.Field(i)
+		if flattened(f) {
+			if err := writeFields(b, v.Field(i), first, depth+1); err != nil {
+				return err
+			}
+			continue
+		}
+		if !travels(f) {
+			continue
+		}
+		if !*first {
+			b.WriteByte(',')
+		}
+		*first = false
+		name, _ := json.Marshal(f.Name)
+		b.Write(name)
+		b.WriteByte(':')
+		if err := write(b, v.Field(i), depth+1); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func readFields(fields map[string]json.RawMessage, v reflect.Value, depth int) error {
+	t := v.Type()
+	for i := range t.NumField() {
+		f := t.Field(i)
+		if flattened(f) {
+			if err := readFields(fields, v.Field(i), depth+1); err != nil {
+				return err
+			}
+			continue
+		}
+		if !travels(f) {
+			continue
+		}
+		raw, ok := fields[f.Name]
+		if !ok {
+			// A type with a form of its own on the sending side only.
+			name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
+			raw, ok = fields[name]
+		}
+		if !ok {
+			continue
+		}
+		if err := read(raw, v.Field(i), depth+1); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func viaJSON(b *bytes.Buffer, v any) error {
@@ -249,25 +298,7 @@ func read(data []byte, v reflect.Value, depth int) error {
 		if err := json.Unmarshal(data, &fields); err != nil {
 			return fmt.Errorf("a %s: %w", t, err)
 		}
-		for i := range t.NumField() {
-			f := t.Field(i)
-			if !travels(f) {
-				continue
-			}
-			raw, ok := fields[f.Name]
-			if !ok {
-				// A type with a form of its own on the sending side only.
-				name, _, _ := strings.Cut(f.Tag.Get("json"), ",")
-				raw, ok = fields[name]
-			}
-			if !ok {
-				continue
-			}
-			if err := read(raw, v.Field(i), depth+1); err != nil {
-				return err
-			}
-		}
-		return nil
+		return readFields(fields, v, depth)
 	case reflect.Slice:
 		if t.Elem().Kind() == reflect.Uint8 {
 			return json.Unmarshal(data, v.Addr().Interface())
