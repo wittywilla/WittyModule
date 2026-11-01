@@ -207,7 +207,16 @@ func catalogSign(keyPath string, files []string) error {
 	if _, err := wittymodule.ParseCatalog(b); err != nil {
 		return err
 	}
-	return sign(keyPath, "", files)
+	if err := sign(keyPath, "", files); err != nil {
+		return err
+	}
+	// What a server shows an admin the first time they add this as a store.
+	key, err := readKey(keyPath)
+	if err != nil {
+		return err
+	}
+	pub := base64.StdEncoding.EncodeToString(key.Public().(ed25519.PublicKey)) + "\n"
+	return os.WriteFile(filepath.Join(filepath.Dir(files[0]), wittymodule.CatalogKeyName), []byte(pub), 0o644)
 }
 
 func checkSignature(pubKey string, data, sig []byte) error {
