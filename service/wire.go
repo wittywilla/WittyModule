@@ -225,7 +225,11 @@ func read(data []byte, v reflect.Value, depth int) error {
 	}
 	t := v.Type()
 	if isNull(data) {
-		v.SetZero()
+		// As encoding/json does: a struct stays as it was, so a receiver isn't wiped by an empty answer.
+		switch t.Kind() {
+		case reflect.Pointer, reflect.Map, reflect.Slice, reflect.Interface:
+			v.SetZero()
+		}
 		return nil
 	}
 	if t.Kind() != reflect.Pointer && t.Kind() != reflect.Interface {
