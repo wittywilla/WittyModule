@@ -241,6 +241,39 @@ const DefaultLimit = 3 * time.Minute
 // and without it, or without the module, calls fail with what it returned.
 var Dial func(module string) (*Conn, error)
 
+// What else a server sets as it starts.
+var (
+	// Running says a module's service is running now, without starting it.
+	Running func(module string) bool
+	// Proxy passes a request straight through to a path of a module's service.
+	Proxy func(module string, w http.ResponseWriter, r *http.Request, path string) error
+	// Subscribe hears one kind of thing a module's service says unasked, until it next starts.
+	Subscribe func(module, method string, fn func(json.RawMessage)) error
+)
+
+var (
+	startMu sync.Mutex
+	onStart = map[string][]func(*Conn){}
+)
+
+// OnStart runs something each time a module's service starts: a service that stopped has
+// forgotten anything it was told.
+func OnStart(module string, fn func(*Conn)) {
+	startMu.Lock()
+	defer startMu.Unlock()
+	onStart[module] = append(onStart[module], fn)
+}
+
+// RunStarted runs what OnStart was given. A server calls it with a new connection.
+func RunStarted(module string, c *Conn) {
+	startMu.Lock()
+	fns := append([]func(*Conn)(nil), onStart[module]...)
+	startMu.Unlock()
+	for _, fn := range fns {
+		fn(c)
+	}
+}
+
 var (
 	errMu   sync.Mutex
 	errCode = map[string]error{}
