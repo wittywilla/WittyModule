@@ -1,16 +1,12 @@
 # WittyModule
 
-What a WittyMediaServer plugin needs to be a project of its own: the manifest, the rules for version
-ranges, the protocol a helper process speaks, and the tool that builds and signs a release. Go, no
-dependencies.
+What a WittyMediaServer plugin needs to be a project of its own: the manifest, the rules for version ranges, the protocol a helper process speaks, and the tool that builds and signs a release. It's for people who make modules.
 
-```bash
-go run github.com/wittywilla/wittymodule/cmd/wittymodule check .
-go run github.com/wittywilla/wittymodule/cmd/wittymodule pack -out release .
-go run github.com/wittywilla/wittymodule/cmd/wittymodule sign release/<id>-<version>-SHA256SUMS.txt
-```
+## What it does
 
-A helper is a small program:
+- **The manifest:** `module.json`, parsed and checked here.
+- **Version ranges:** which servers a version fits.
+- **The helper protocol:** what a helper program and a server say to each other. A helper is a small program:
 
 ```go
 func main() {
@@ -20,10 +16,78 @@ func main() {
 }
 ```
 
-The design, including what each version range means, is in
-[WittyMediaServer's docs/MODULES.md](https://github.com/wittywilla/WittyMediaServer/blob/master/docs/MODULES.md).
+- **The catalogue:** the code that reads and checks a store's signed list of modules.
+- **Withdrawing a version:** the signed list that takes a version back.
+- **The `wittymodule` tool:**
 
-WittyModule is developed by WittyWilla. Apache-2.0.
+| Command | What it does |
+|---|---|
+| `check` | Checks a folder's manifest |
+| `pack` | Builds a release: a program for every system, or a browser bundle with `-web` |
+| `sign`, `keygen` | Signs a checksum list, and makes a key |
+| `bump`, `needs-bump` | Raises the version everywhere it's written, and fails if code changed since the last tag with no new version |
+| `withdraw`, `restore` | Takes a version back, and undoes that |
+| `catalog-add`, `catalog-check`, `catalog-sign` | Works on a store's catalogue |
+
+- **`kit/`:** `kit/module-kit.sh` writes a module's workflows and the Releasing section of its README, and `kit/facade` writes the stubs a server uses to call a module.
+
+The design, including what each version range means, is in the modules guide in **Help** inside WittyMediaServer.
+
+## How to get it
+
+Modules bring it in as a Go dependency:
+
+```bash
+go get github.com/wittywilla/wittymodule
+```
+
+```bash
+go run github.com/wittywilla/wittymodule/cmd/wittymodule check .
+```
+
+A server gets it inside the modules built with it, so there's nothing to add from the store. Modules built with this version work with WittyMediaServer 0.6.0-alpha or later, through **Settings → Modules**, and nothing older.
+
+## What it needs
+
+Go 1.26 or newer. It has no dependencies, and no cgo.
+
+## Platforms
+
+It's plain Go, and CI builds it for Windows, macOS, Linux and FreeBSD. Its tests have been run on Linux, and `pack` has built modules for all four from there, including FreeBSD on amd64 and arm64. Those have not been run on a real Mac or on FreeBSD. `kit/module-kit.sh` needs bash.
+
+## Building and testing
+
+```bash
+go vet ./...
+```
+
+```bash
+go test ./... -count=1
+```
+
+```bash
+go run ./cmd/wittymodule check .
+```
+
+A module's own `pack` and `sign` go like this:
+
+```bash
+go run github.com/wittywilla/wittymodule/cmd/wittymodule pack -out release .
+```
+
+```bash
+go run github.com/wittywilla/wittymodule/cmd/wittymodule sign release/<id>-<version>-SHA256SUMS.txt
+```
+
+To make or refresh a module's workflows:
+
+```bash
+kit/module-kit.sh ../WittyPhotos
+```
+
+## Licence
+
+Apache-2.0: see [LICENSE](LICENSE) and [NOTICE](NOTICE). If you redistribute it or build on it, keep the NOTICE attribution.
 
 ## Legal
 
