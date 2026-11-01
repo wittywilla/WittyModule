@@ -158,8 +158,11 @@ func checkOne(dir, server string) error {
 	if err != nil {
 		return err
 	}
-	if base := strings.ToLower(filepath.Base(abs)); base != m.ID {
-		return fmt.Errorf("the manifest says %q, in a folder named %q", m.ID, base)
+	// The top of a checkout can be called anything: a worktree is named for its branch.
+	if _, git := os.Stat(filepath.Join(abs, ".git")); git != nil {
+		if base := strings.ToLower(filepath.Base(abs)); base != m.ID {
+			return fmt.Errorf("the manifest says %q, in a folder named %q", m.ID, base)
+		}
 	}
 	if m.API > wittymodule.API || m.API < wittymodule.MinAPI {
 		return fmt.Errorf("api %d is outside what this WittyModule knows (%d to %d)", m.API, wittymodule.MinAPI, wittymodule.API)
