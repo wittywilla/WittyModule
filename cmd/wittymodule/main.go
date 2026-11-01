@@ -293,6 +293,11 @@ func pack(dirs []string, out, targets, gcflagsFreeBSD, built string) error {
 		for name, b := range webFiles {
 			files["web/"+name] = b
 		}
+		if b, err := thirdParty(dir, t.GOOS); err != nil {
+			return err
+		} else if len(b) > 0 {
+			files[wittymodule.NoticesFile] = b
+		}
 		for _, name := range []string{wittymodule.ManifestFile, "LICENSE", "NOTICE", "README.md"} {
 			if b, err := os.ReadFile(filepath.Join(dir, name)); err == nil {
 				files[name] = b
@@ -318,6 +323,58 @@ func pack(dirs []string, out, targets, gcflagsFreeBSD, built string) error {
 		sums[archive] = hash(b)
 	}
 	return writeSums(out, m, sums)
+}
+
+var licenseFile = regexp.MustCompile(`(?i)^(licen[cs]e|copying|notice)([._-].*)?$`)
+
+// thirdParty is the license text of every library a module's programs are built from, for a
+// server to show. A library's license asks for this wherever it's passed on, and each module
+// is passed on by itself.
+func thirdParty(dir, goos string) ([]byte, error) {
+	cmd := exec.Command("go", "list", "-e", "-deps", "-f", `{{with .Module}}{{if not .Main}}{{.Path}}|{{.Version}}|{{.Dir}}{{end}}{{end}}`, "./...")
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GOOS="+goos, "CGO_ENABLED=0")
+	raw, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("listing what %s is built from: %w", dir, err)
+	}
+	seen := map[string]bool{}
+	var mods []string
+	for _, line := range strings.Split(string(raw), "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" && !seen[line] && !strings.HasPrefix(line, "github.com/wittywilla/") {
+			seen[line] = true
+			mods = append(mods, line)
+		}
+	}
+	sort.Strings(mods)
+	var out bytes.Buffer
+	for _, line := range mods {
+		parts := strings.SplitN(line, "|", 3)
+		if len(parts) != 3 || parts[2] == "" {
+			continue
+		}
+		entries, err := os.ReadDir(parts[2])
+		if err != nil {
+			return nil, err
+		}
+		found := false
+		for _, e := range entries {
+			if e.IsDir() || !licenseFile.MatchString(e.Name()) {
+				continue
+			}
+			b, err := os.ReadFile(filepath.Join(parts[2], e.Name()))
+			if err != nil {
+				return nil, err
+			}
+			fmt.Fprintf(&out, "==== %s %s: %s\n\n%s\n\n", parts[0], parts[1], e.Name(), bytes.TrimSpace(b))
+			found = true
+		}
+		if !found {
+			return nil, fmt.Errorf("%s has no license file to pass on: read what its license asks for before shipping it", parts[0])
+		}
+	}
+	return out.Bytes(), nil
 }
 
 // writeSums writes the list to sign.

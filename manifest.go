@@ -50,6 +50,9 @@ const (
 // ManifestFile is the manifest's name in a plugin's folder and in a release.
 const ManifestFile = "module.json"
 
+// NoticesFile holds the licenses of the libraries in a module's programs.
+const NoticesFile = "THIRD-PARTY-NOTICES.txt"
+
 // Manifest describes one version of a plugin.
 type Manifest struct {
 	ID       string `json:"id"`
