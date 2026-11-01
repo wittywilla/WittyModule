@@ -6,6 +6,9 @@ What changed in WittyModule, newest first. What changed before it had a reposito
 ## Unreleased
 
 - A catalogue entry can list screenshots. `catalog-sign` also writes `catalog.json.key`, the public key a store offers the first time an admin adds it.
+- `pack` writes THIRD-PARTY-NOTICES.txt into each archive: the license of every library in a module's programs. A library with no license file stops it.
+- The kit: a helper with a part in the browser builds that first and packs them together, and modules without a lock file install their packages unlocked.
+
 - `DiagJob` and the `diag.*` notifications: a module can check what it reads, and report as it goes.
 - Module API 3 is also the oldest a server now takes, and a module's `minServer` starts at 0.6.0-alpha: nothing of a module is compiled into the server from there on.
 - A helper can ask for the `programs`, `devices` and `data` permissions, bring more programs with it (`programs`), and have a part in the browser (`webEntry`, `webStyle`, built with `pack -web`).
