@@ -5,6 +5,7 @@ What changed in WittyModule, newest first. What changed before it had a reposito
 
 ## Unreleased
 
+- The kit writes the licence each project's own `module.json` or `package.json` names, instead of Apache-2.0 for all of them. Running it again no longer undoes WittyCouch Host's README.
 - `pack -prebuilt <folder>` packs a program built with something other than Go, for the systems it was built for. The kit leaves such a repository's release workflow alone.
 - A catalogue entry can list screenshots. `catalog-sign` also writes `catalog.json.key`, the public key a store offers the first time an admin adds it.
 - A service and the server send every field across, by its Go name, including those hidden from JSON. Only what is live stays behind.

@@ -22,5 +22,5 @@ To release:
    suffix, such as `v1.2.0-beta`, is published as a prerelease.
 3. Watch the *Actions* tab. @@README_AFTER@@
 @@README_WITHDRAW@@
-Licensed under Apache-2.0: see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Licensed under @@LICENSE@@: see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 <!-- /module-kit -->

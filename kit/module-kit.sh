@@ -43,7 +43,7 @@ render() { # <template> <output>
     -e "s|@@ID@@|$id|g" -e "s|@@NAME@@|$name|g" -e "s|@@VERSION_FILE@@|$version_file|g" \
     -e "s|@@TOOL@@|$tool|g" -e "s|@@TOOL_RELEASED@@|$tool_released|g" -e "s|@@PACK_FLAGS@@|$pack_flags|g" \
     -e "s|@@README_WHAT@@|$readme_what|" -e "s|@@README_VERSION@@|$readme_version|" -e "s|@@README_AFTER@@|$readme_after|" \
-    -e "s|@@README_WITHDRAW@@|$readme_withdraw|" > "$2"
+    -e "s|@@README_WITHDRAW@@|$readme_withdraw|" -e "s|@@LICENSE@@|$license|g" > "$2"
 }
 
 # Puts the generated section at the end of the README, or in place of the one there.
@@ -114,6 +114,9 @@ kit() { # <folder>
     version_file=package.json
   fi
   [ -n "$id" ] && [ -n "$version" ] || { echo "$dir: no id or version found" >&2; exit 1; }
+  # Each project says its own: not every one is under the same licence.
+  license=$(field license "$dir/$version_file")
+  [ -n "$license" ] || license="Apache-2.0"
 
   words=""
   [ -f "$dir/go.mod" ] && words="$words go"
