@@ -147,6 +147,9 @@ type callAnswer struct {
 	Back json.RawMessage   `json:"back,omitempty"`
 	Err  string            `json:"err,omitempty"`
 	Code string            `json:"code,omitempty"`
+	// An error with more to say than words, by the name both sides registered it under.
+	ErrType string          `json:"errType,omitempty"`
+	ErrData json.RawMessage `json:"errData,omitempty"`
 }
 
 func callHandler(c Config) http.Handler {
@@ -168,6 +171,7 @@ func callHandler(c Config) http.Handler {
 			if c.ErrorCode != nil {
 				a.Code = c.ErrorCode(err)
 			}
+			a.ErrType, a.ErrData = typedError(err)
 		}
 		for _, v := range rets {
 			raw, merr := Marshal(v)
@@ -287,6 +291,53 @@ func RegisterError(code string, err error) {
 	errCode[code] = err
 }
 
+// errType is how an error type crosses: found in an error on one side, made on the other.
+type errType struct {
+	find func(error) (any, bool)
+	read func(json.RawMessage) error
+}
+
+var errTypes = map[string]errType{}
+
+// RegisterErrorType says an error type has more to say than its words, so that errors.As finds it
+// on the other side. Both sides register their own copy under the same name.
+func RegisterErrorType[T any, P interface {
+	*T
+	error
+}](name string) {
+	errMu.Lock()
+	defer errMu.Unlock()
+	errTypes[name] = errType{
+		find: func(err error) (any, bool) {
+			var p P
+			if errors.As(err, &p) {
+				return p, true
+			}
+			return nil, false
+		},
+		read: func(raw json.RawMessage) error {
+			p := P(new(T))
+			if Unmarshal(raw, p) != nil {
+				return nil
+			}
+			return p
+		},
+	}
+}
+
+func typedError(err error) (string, json.RawMessage) {
+	errMu.Lock()
+	defer errMu.Unlock()
+	for name, t := range errTypes {
+		if v, ok := t.find(err); ok {
+			if raw, merr := Marshal(v); merr == nil {
+				return name, raw
+			}
+		}
+	}
+	return "", nil
+}
+
 // CallError is a service saying no, with its words.
 type CallError struct {
 	Code    string
@@ -374,7 +425,11 @@ func (c *Conn) Call(ctx context.Context, name string, recv, back any, args []any
 	if a.Err != "" {
 		errMu.Lock()
 		known := errCode[a.Code]
+		typed, isTyped := errTypes[a.ErrType]
 		errMu.Unlock()
+		if isTyped {
+			known = typed.read(a.ErrData)
+		}
 		return &CallError{Code: a.Code, Message: a.Err, known: known}
 	}
 	return nil
