@@ -31,7 +31,7 @@ func main() {
 
 - **`kit/`:** `kit/module-kit.sh` writes a module's workflows and the Releasing section of its README, and `kit/facade` writes the stubs a server uses to call a module.
 
-The design, including what each version range means, is in the modules guide in **Help** inside WittyMediaServer.
+The design, including what each version range means, is in Making a module, in **Help** inside WittyMediaServer.
 
 ## How to get it
 
