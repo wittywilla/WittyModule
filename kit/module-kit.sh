@@ -133,6 +133,11 @@ kit() { # <folder>
   else
     pack_flags=''
   fi
+  # A helper with a part in the browser builds that first, and packs them together.
+  if [ -f "$dir/module.json" ] && grep -q '"webEntry"' "$dir/module.json"; then
+    words="$words webpart npm node"
+    pack_flags="$pack_flags -web dist"
+  fi
   tool="github.com/wittywilla/wittymodule/cmd/wittymodule@$tool_version"
   tool_released=$tool
   # WittyModule checks itself with the tool it holds.
