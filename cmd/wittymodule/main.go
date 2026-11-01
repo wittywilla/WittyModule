@@ -73,10 +73,10 @@ func main() {
 	case "check":
 		err = check(fs.Args(), *server)
 	case "pack":
-		if *web != "" {
+		if *web != "" && webOnly(fs.Args()) {
 			err = packWeb(fs.Args(), *out, *web)
 		} else {
-			err = pack(fs.Args(), *out, *targets, *gcflagsFreeBSD)
+			err = pack(fs.Args(), *out, *targets, *gcflagsFreeBSD, *web)
 		}
 	case "sign":
 		err = sign(*key, *expect, fs.Args())
@@ -180,6 +180,9 @@ func checkOne(dir, server string) error {
 	if m.API > wittymodule.API || m.API < wittymodule.MinAPI {
 		return fmt.Errorf("api %d is outside what this WittyModule knows (%d to %d)", m.API, wittymodule.MinAPI, wittymodule.API)
 	}
+	if wittymodule.Compare(m.MinServer, wittymodule.FirstServer) < 0 {
+		return fmt.Errorf("minServer %s is older than %s, the first server a module can run on", m.MinServer, wittymodule.FirstServer)
+	}
 	if m.PerPlatform() {
 		// A program written in something other than Go brings its own build.
 		_, cmake := os.Stat(filepath.Join(dir, "CMakeLists.txt"))
@@ -202,7 +205,17 @@ func checkOne(dir, server string) error {
 // fixedTime is every file's date in an archive, so the same code packs the same.
 var fixedTime = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 
-func pack(dirs []string, out, targets, gcflagsFreeBSD string) error {
+// webOnly says whether what's being packed is a bundle alone, rather than programs with a
+// web part. A folder that can't be read is left for whichever runs next to report.
+func webOnly(dirs []string) bool {
+	if len(dirs) != 1 {
+		return true
+	}
+	m, _, err := readManifest(dirs[0])
+	return err != nil || !m.PerPlatform()
+}
+
+func pack(dirs []string, out, targets, gcflagsFreeBSD, built string) error {
 	if len(dirs) != 1 {
 		return errors.New("which folder? wittymodule pack <folder>")
 	}
@@ -216,6 +229,24 @@ func pack(dirs []string, out, targets, gcflagsFreeBSD string) error {
 	}
 	if err := checkOne(dir, ""); err != nil {
 		return err
+	}
+	if m.WebEntry != "" && built == "" {
+		return fmt.Errorf("%s has a part in the browser: build it, and say where with -web <built folder>", m.ID)
+	}
+	var webFiles map[string][]byte
+	if built != "" {
+		if m.WebEntry == "" {
+			return fmt.Errorf("%s names no webEntry in its manifest, so it has no use for -web", m.ID)
+		}
+		webFiles, err = readBuilt(built)
+		if err != nil {
+			return err
+		}
+		for _, f := range []string{m.WebEntry, m.WebStyle} {
+			if _, ok := webFiles[f]; f != "" && !ok {
+				return fmt.Errorf("the built web part has no %s, which the manifest names", f)
+			}
+		}
 	}
 	list := wittymodule.Targets
 	if targets != "" {
@@ -243,10 +274,25 @@ func pack(dirs []string, out, targets, gcflagsFreeBSD string) error {
 	for _, t := range list {
 		fmt.Println("building", m.ID, m.Version, t.GOOS+"/"+t.GOARCH)
 		exe := filepath.Join(work, t.GOOS+"-"+t.GOARCH)
-		if err := build(dir, m, t, exe, gcflagsFreeBSD); err != nil {
+		if err := build(dir, m.Entry, t, exe, gcflagsFreeBSD); err != nil {
 			return err
 		}
 		files := map[string][]byte{}
+		execs := map[string]bool{m.EntryFile(t.GOOS): true}
+		for _, p := range m.Programs {
+			other := exe + "-" + p
+			if err := build(dir, p, t, other, gcflagsFreeBSD); err != nil {
+				return err
+			}
+			name := wittymodule.ProgramFile(p, t.GOOS)
+			if files[name], err = os.ReadFile(other); err != nil {
+				return err
+			}
+			execs[name] = true
+		}
+		for name, b := range webFiles {
+			files["web/"+name] = b
+		}
 		for _, name := range []string{wittymodule.ManifestFile, "LICENSE", "NOTICE", "README.md"} {
 			if b, err := os.ReadFile(filepath.Join(dir, name)); err == nil {
 				files[name] = b
@@ -262,7 +308,7 @@ func pack(dirs []string, out, targets, gcflagsFreeBSD string) error {
 			sums[top+"/"+name] = hash(b)
 		}
 		archive := wittymodule.ArchiveName(m.ID, m.Version, t.GOOS, t.GOARCH)
-		b, err := archiveBytes(t.GOOS, top, m.EntryFile(t.GOOS), files)
+		b, err := archiveBytes(t.GOOS, top, execs, files)
 		if err != nil {
 			return err
 		}
@@ -318,8 +364,54 @@ func packWeb(dirs []string, out, built string) error {
 	if err := checkOne(dir, ""); err != nil {
 		return err
 	}
-	files := map[string][]byte{wittymodule.ManifestFile: raw}
-	err = filepath.WalkDir(built, func(p string, d os.DirEntry, err error) error {
+	files, err := readBuilt(built)
+	if err != nil {
+		return err
+	}
+	files[wittymodule.ManifestFile] = raw
+	if _, ok := files[m.Entry]; !ok {
+		return fmt.Errorf("the built bundle has no %s, which the manifest names", m.Entry)
+	}
+	if m.Style != "" {
+		if _, ok := files[m.Style]; !ok {
+			return fmt.Errorf("the built bundle has no %s, which the manifest names", m.Style)
+		}
+	}
+	for _, name := range []string{"LICENSE", "NOTICE"} {
+		b, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			return err
+		}
+		files[name] = b
+	}
+	if err := os.MkdirAll(out, 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(out, wittymodule.ManifestName(m.ID, m.Version)), raw, 0o644); err != nil {
+		return err
+	}
+	sums := map[string]string{wittymodule.ManifestName(m.ID, m.Version): hash(raw)}
+	top := wittymodule.WebTopFolder(m.ID, m.Version)
+	for name, b := range files {
+		sums[top+"/"+name] = hash(b)
+	}
+	b, err := archiveBytes("linux", top, nil, files)
+	if err != nil {
+		return err
+	}
+	archive := wittymodule.WebArchiveName(m.ID, m.Version)
+	if err := os.WriteFile(filepath.Join(out, archive), b, 0o644); err != nil {
+		return err
+	}
+	sums[archive] = hash(b)
+	return writeSums(out, m, sums)
+}
+
+// readBuilt reads what a web build made, with a compressed copy of each script and
+// stylesheet beside it, so a small server sends them with no compressing work of its own.
+func readBuilt(built string) (map[string][]byte, error) {
+	files := map[string][]byte{}
+	err := filepath.WalkDir(built, func(p string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
@@ -356,45 +448,7 @@ func packWeb(dirs []string, out, built string) error {
 		}
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-	if _, ok := files[m.Entry]; !ok {
-		return fmt.Errorf("the built bundle has no %s, which the manifest names", m.Entry)
-	}
-	if m.Style != "" {
-		if _, ok := files[m.Style]; !ok {
-			return fmt.Errorf("the built bundle has no %s, which the manifest names", m.Style)
-		}
-	}
-	for _, name := range []string{"LICENSE", "NOTICE"} {
-		b, err := os.ReadFile(filepath.Join(dir, name))
-		if err != nil {
-			return err
-		}
-		files[name] = b
-	}
-	if err := os.MkdirAll(out, 0o755); err != nil {
-		return err
-	}
-	if err := os.WriteFile(filepath.Join(out, wittymodule.ManifestName(m.ID, m.Version)), raw, 0o644); err != nil {
-		return err
-	}
-	sums := map[string]string{wittymodule.ManifestName(m.ID, m.Version): hash(raw)}
-	top := wittymodule.WebTopFolder(m.ID, m.Version)
-	for name, b := range files {
-		sums[top+"/"+name] = hash(b)
-	}
-	b, err := archiveBytes("linux", top, "", files)
-	if err != nil {
-		return err
-	}
-	archive := wittymodule.WebArchiveName(m.ID, m.Version)
-	if err := os.WriteFile(filepath.Join(out, archive), b, 0o644); err != nil {
-		return err
-	}
-	sums[archive] = hash(b)
-	return writeSums(out, m, sums)
+	return files, err
 }
 
 // withdraw adds a version to a plugin's list of withdrawn versions. Sign the list
@@ -478,7 +532,7 @@ func writeWithdrawals(list string, w *wittymodule.Withdrawals) error {
 	return nil
 }
 
-func build(dir string, m *wittymodule.Manifest, t wittymodule.Target, exe, gcflagsFreeBSD string) error {
+func build(dir, program string, t wittymodule.Target, exe, gcflagsFreeBSD string) error {
 	abs, err := filepath.Abs(exe)
 	if err != nil {
 		return err
@@ -487,7 +541,7 @@ func build(dir string, m *wittymodule.Manifest, t wittymodule.Target, exe, gcfla
 	if t.GOOS == "freebsd" && gcflagsFreeBSD != "" {
 		args = append(args, "-gcflags="+gcflagsFreeBSD)
 	}
-	cmd := exec.Command("go", append(args, "./cmd/"+m.Entry)...)
+	cmd := exec.Command("go", append(args, "./cmd/"+program)...)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0", "GOOS="+t.GOOS, "GOARCH="+t.GOARCH, "GOARM=7")
 	if b, err := cmd.CombinedOutput(); err != nil {
@@ -501,14 +555,14 @@ func hash(b []byte) string {
 	return hex.EncodeToString(h[:])
 }
 
-func archiveBytes(goos, top, entry string, files map[string][]byte) ([]byte, error) {
+func archiveBytes(goos, top string, execs map[string]bool, files map[string][]byte) ([]byte, error) {
 	names := make([]string, 0, len(files))
 	for n := range files {
 		names = append(names, n)
 	}
 	sort.Strings(names)
 	mode := func(n string) int64 {
-		if n == entry {
+		if execs[n] {
 			return 0o755
 		}
 		return 0o644
