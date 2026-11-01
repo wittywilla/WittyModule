@@ -126,7 +126,9 @@ func main() {
 	dispatch.WriteString("import (\n\t\"context\"\n\t\"encoding/json\"\n\t\"errors\"\n")
 	var imps []string
 	for i := range imports {
-		imps = append(imps, i)
+		if i != "context" && i != "encoding/json" && i != "errors" {
+			imps = append(imps, i)
+		}
 	}
 	sort.Strings(imps)
 	for _, i := range imps {
@@ -173,9 +175,10 @@ func load(modDir string, p Package) (*pkgInfo, error) {
 	sort.Strings(files)
 	for _, path := range files {
 		base := filepath.Base(path)
-		if strings.HasSuffix(base, "_test.go") || hasOS(base) {
+		if strings.HasSuffix(base, "_test.go") || (hasOS(base) && !strings.HasSuffix(base, "_linux.go")) {
 			continue
 		}
+		onlyFuncs := hasOS(base) // one system's copy tells what a function's signature is
 		src, err := os.ReadFile(path)
 		if err != nil {
 			return nil, err
@@ -185,6 +188,9 @@ func load(modDir string, p Package) (*pkgInfo, error) {
 			return nil, err
 		}
 		for _, d := range f.Decls {
+			if fd, isFunc := d.(*ast.FuncDecl); onlyFuncs && (!isFunc || fd.Recv != nil || !exported(fd.Name.Name)) {
+				continue
+			}
 			dd := &decl{node: d, file: f, src: src, path: path}
 			pi.decls = append(pi.decls, dd)
 			switch x := d.(type) {
@@ -467,6 +473,36 @@ func stubs(cfg Config, p *pkgInfo, all map[string]*pkgInfo, cases, sentinels *by
 		used["errors"] = "errors"
 	}
 
+	// Exported tables: a function of the same name, since what's in them is the module's.
+	var varNames []string
+	for name, d := range p.values {
+		gd := d.node.(*ast.GenDecl)
+		if gd.Tok == token.VAR && exported(name) && !p.manual[name] && !p.local[name] && !strings.HasPrefix(name, "Err") {
+			varNames = append(varNames, name)
+		}
+	}
+	sort.Strings(varNames)
+	for _, name := range varNames {
+		typ := varType(p, p.values[name], name)
+		if typ == "" {
+			p.skipped = append(p.skipped, name)
+			continue
+		}
+		fmt.Fprintf(&body, "// %s is the module's table of that name.\nfunc %s() %s {\n\tvar r0 %s\n\t_ = service.Call(context.Background(), %q, %q, nil, nil, nil, []any{&r0})\n\treturn r0\n}\n\n", name, name, typ, typ, cfg.Module, p.cfg.Name+"."+name)
+		fmt.Fprintf(cases, "\t%q: func(context.Context, json.RawMessage, []json.RawMessage) ([]any, any, error) {\n\t\treturn []any{%s.%s}, nil, nil\n\t},\n", p.cfg.Name+"."+name, p.cfg.Name, name)
+		used["github.com/wittywilla/wittymodule/service"] = "service"
+		used["context"] = "context"
+		noteImports(p.values[name], used)
+		// What it holds has to be copied too.
+		ast.Inspect(p.values[name].node, func(n ast.Node) bool {
+			if c, ok := n.(*ast.CompositeLit); ok && c.Type != nil {
+				ast.Inspect(c.Type, func(m ast.Node) bool { return follow(p, m, visit) })
+				return false
+			}
+			return true
+		})
+	}
+
 	// The functions and methods.
 	var names []string
 	for n := range p.funcs {
@@ -555,6 +591,34 @@ func stubs(cfg Config, p *pkgInfo, all map[string]*pkgInfo, cases, sentinels *by
 func usesPackage(text, name string) bool {
 	re := regexp.MustCompile(`(^|[^.\w"/])` + regexp.QuoteMeta(name) + `\.[A-Z]`)
 	return re.MatchString(text)
+}
+
+// varType is the type of a variable holding a literal, or "".
+func varType(p *pkgInfo, d *decl, name string) string {
+	gd := d.node.(*ast.GenDecl)
+	for _, s := range gd.Specs {
+		v, ok := s.(*ast.ValueSpec)
+		if !ok {
+			continue
+		}
+		for i, n := range v.Names {
+			if n.Name != name {
+				continue
+			}
+			if v.Type != nil {
+				if !p.carries(v.Type) {
+					return ""
+				}
+				return p.text(v.Type)
+			}
+			if i < len(v.Values) {
+				if c, ok := v.Values[i].(*ast.CompositeLit); ok && c.Type != nil && p.carries(c.Type) {
+					return p.text(c.Type)
+				}
+			}
+		}
+	}
+	return ""
 }
 
 func isLocal(p *pkgInfo, fd *ast.FuncDecl) bool {
