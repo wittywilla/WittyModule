@@ -31,9 +31,9 @@ const manifestText = `{
   "version": "0.2.0",
   "repo": "wittywilla/WittyThing",
   "delivery": "library",
-  "api": 2,
-  "minServer": "0.4.0-alpha",
-  "maxServer": "0.5.x"
+  "api": 3,
+  "minServer": "0.6.0-alpha",
+  "maxServer": "0.6.x"
 }
 `
 

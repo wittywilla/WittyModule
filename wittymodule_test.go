@@ -55,7 +55,7 @@ func TestSupportsAPI(t *testing.T) {
 		t.Errorf("too new: %v", err)
 	}
 	m.API = 1
-	if err := m.Supports("0.4.0", 2, 3); err == nil || !strings.Contains(err.Error(), "too old") {
+	if err := m.Supports("0.4.0", 2, 3); err == nil || !strings.Contains(err.Error(), "too old") || !strings.Contains(err.Error(), FirstServer) {
 		t.Errorf("too old: %v", err)
 	}
 	if err := m.Supports("0.4.0", 1, 3); err != nil {

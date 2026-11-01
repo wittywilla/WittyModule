@@ -18,11 +18,16 @@ import (
 //
 // API 2 adds web bundles, programs, attached helpers and streams to API 1. Nothing
 // in API 1 changed, so a version built for it still runs. API 3 adds notifications from
-// a helper and the pages a module adds to the app.
+// a helper and the pages a module adds to the app, and is the first API where nothing of a
+// module is compiled into the server, so it is also the oldest one a server takes: a module
+// has to be built for WittyMediaServer 0.6.0-alpha or newer.
 const (
 	API    = 3
-	MinAPI = 1
+	MinAPI = 3
 )
+
+// FirstServer is the first server this API is for, and what a module's minServer starts from.
+const FirstServer = "0.6.0-alpha"
 
 // How a release of a plugin reaches the server.
 const (
@@ -35,7 +40,12 @@ const (
 
 // Permissions a version can ask for. A helper has neither unless it asks, in its
 // signed manifest, and the server also agrees that its kind of plugin needs it.
-const PermissionNetwork = "network"
+const (
+	PermissionNetwork  = "network"  // it may reach the network
+	PermissionPrograms = "programs" // it may start other programs, such as FFmpeg
+	PermissionDevices  = "devices"  // it may open this machine's devices, such as a tuner or a graphics card
+	PermissionData     = "data"     // it may write to a folder of its own, which it is told of in WITTYMODULE_DATA
+)
 
 // ManifestFile is the manifest's name in a plugin's folder and in a release.
 const ManifestFile = "module.json"
@@ -49,8 +59,14 @@ type Manifest struct {
 	License  string `json:"license,omitempty"`
 	Delivery string `json:"delivery"`
 	// Entry is the program, without .exe, or a web bundle's script.
-	Entry     string `json:"entry,omitempty"`
-	Style     string `json:"style,omitempty"` // a web bundle's stylesheet, if it has one
+	Entry string `json:"entry,omitempty"`
+	Style string `json:"style,omitempty"` // a web bundle's stylesheet, if it has one
+	// Programs are more programs that come with a helper, without .exe, built from cmd/<name>.
+	Programs []string `json:"programs,omitempty"`
+	// WebEntry and WebStyle are the script and stylesheet of a helper that also has a part in
+	// the browser. Those files sit in web/ inside each platform's archive.
+	WebEntry  string `json:"webEntry,omitempty"`
+	WebStyle  string `json:"webStyle,omitempty"`
 	API       int    `json:"api"`
 	MinServer string `json:"minServer"`
 	MaxServer string `json:"maxServer"`
@@ -187,12 +203,27 @@ func (m *Manifest) Validate() error {
 		}
 	}
 	for _, p := range m.Permissions {
-		if p != PermissionNetwork {
+		switch p {
+		case PermissionNetwork, PermissionPrograms, PermissionDevices, PermissionData:
+		default:
 			return fmt.Errorf("manifest of %s: %q is not a permission", name, p)
 		}
 	}
-	if len(m.Pages) > 0 && m.Delivery != DeliveryWeb {
+	if len(m.Pages) > 0 && !m.HasWeb() {
 		return fmt.Errorf("manifest of %s: only a web bundle can draw a page", name)
+	}
+	if len(m.Programs) > maxListed {
+		return fmt.Errorf("manifest of %s: too many programs", name)
+	}
+	for _, p := range m.Programs {
+		if !entryRe.MatchString(p) || !m.PerPlatform() {
+			return fmt.Errorf("manifest of %s: %q is not a program that can come with it", name, p)
+		}
+	}
+	for _, f := range []string{m.WebEntry, m.WebStyle} {
+		if f != "" && (!entryRe.MatchString(f) || !m.PerPlatform()) {
+			return fmt.Errorf("manifest of %s: %q is not a file of a helper's web part", name, f)
+		}
 	}
 	if len(m.Pages) > 16 {
 		return fmt.Errorf("manifest of %s: too many pages", name)
@@ -234,6 +265,25 @@ func (m *Manifest) Asks(permission string) bool {
 	return false
 }
 
+// HasWeb says whether a version has a part that runs in the browser.
+func (m *Manifest) HasWeb() bool { return m.Delivery == DeliveryWeb || m.WebEntry != "" }
+
+// WebFolder is ProgramFile's folder for that part: where its files sit inside the version.
+func (m *Manifest) WebFolder() string {
+	if m.Delivery == DeliveryWeb {
+		return ""
+	}
+	return "web/"
+}
+
+// ProgramFile is a program's file name on a system.
+func ProgramFile(name, goos string) string {
+	if goos == "windows" {
+		return name + ".exe"
+	}
+	return name
+}
+
 // PerPlatform says whether a version has a build for each platform, rather than
 // one bundle for all.
 func (m *Manifest) PerPlatform() bool {
@@ -273,7 +323,7 @@ func (m *Manifest) Supports(server string, minAPI, maxAPI int) error {
 		return fmt.Errorf("%s %s needs a newer server: it uses module API %d, and this server has up to %d", m.Name, m.Version, m.API, maxAPI)
 	}
 	if m.API < minAPI {
-		return fmt.Errorf("%s %s is too old for this server: it uses module API %d, and this server needs at least %d", m.Name, m.Version, m.API, minAPI)
+		return fmt.Errorf("%s %s is too old for this server: it uses module API %d, and this server needs at least %d. It was built before modules became separate from the server, so install a version made for WittyMediaServer %s or newer", m.Name, m.Version, m.API, minAPI, FirstServer)
 	}
 	return nil
 }
