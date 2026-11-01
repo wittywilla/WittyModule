@@ -138,6 +138,7 @@ kit() { # <folder>
     words="$words webpart npm node"
     pack_flags="$pack_flags -web dist"
   fi
+  if [ "$id" = wittybluray ]; then words="$words java"; else words="$words nojava"; fi
   tool="github.com/wittywilla/wittymodule/cmd/wittymodule@$tool_version"
   tool_released=$tool
   # WittyModule checks itself with the tool it holds.
