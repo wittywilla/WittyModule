@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 )
 
 // The helper protocol (module API 1): one line of JSON per message over stdin and
@@ -40,6 +41,13 @@ type response struct {
 	Error  string          `json:"error,omitempty"`
 	Code   string          `json:"code,omitempty"`
 	Blob   int64           `json:"blob,omitempty"`
+}
+
+// notification is what a helper says without being asked (module API 3). It has no id,
+// and nothing answers it.
+type notification struct {
+	Notify string          `json:"notify"`
+	Params json.RawMessage `json:"params,omitempty"`
 }
 
 // CallError is an answer from a working helper that says no, such as a file it
@@ -76,6 +84,38 @@ func writeLine(w *bufio.Writer, v any) error {
 	return w.WriteByte('\n')
 }
 
+// notifier is the running Serve's way out, shared with Notify. A helper has one.
+var notifier struct {
+	sync.Mutex
+	w *bufio.Writer
+}
+
+// ErrNotServing is Notify when no Serve is running, or in a process answering with a
+// stream, where anything else on the pipe would be taken for part of the stream.
+var ErrNotServing = errors.New("this process isn't serving calls, so it has nobody to tell")
+
+// Notify tells the server something unasked, from any goroutine, at any time while Serve
+// is running. A server treats it as untrusted, and may ignore it or drop it for sending too
+// many. It blocks only while the pipe is full, so don't call it in a tight loop.
+func Notify(method string, params any) error {
+	if method == "" {
+		return errors.New("a notification needs a name")
+	}
+	b, err := json.Marshal(params)
+	if err != nil {
+		return err
+	}
+	notifier.Lock()
+	defer notifier.Unlock()
+	if notifier.w == nil {
+		return ErrNotServing
+	}
+	if err := writeLine(notifier.w, notification{Notify: method, Params: b}); err != nil {
+		return err
+	}
+	return notifier.w.Flush()
+}
+
 // Serve is a helper's loop: it says hello and answers calls until in closes.
 func Serve(in io.Reader, out io.Writer, hello Hello, h Handler) error {
 	r, w := bufio.NewReaderSize(in, MaxLine), bufio.NewWriter(out)
@@ -85,6 +125,14 @@ func Serve(in io.Reader, out io.Writer, hello Hello, h Handler) error {
 	if err := w.Flush(); err != nil {
 		return err
 	}
+	notifier.Lock()
+	notifier.w = w
+	notifier.Unlock()
+	defer func() {
+		notifier.Lock()
+		notifier.w = nil
+		notifier.Unlock()
+	}()
 	for {
 		line, err := readLine(r)
 		if errors.Is(err, io.EOF) {
@@ -115,16 +163,23 @@ func Serve(in io.Reader, out io.Writer, hello Hello, h Handler) error {
 			res.Result, res.Error, blob = nil, "the answer is too large", nil
 		}
 		res.Blob = int64(len(blob))
-		if err := writeLine(w, res); err != nil {
-			return err
-		}
-		if _, err := w.Write(blob); err != nil {
-			return err
-		}
-		if err := w.Flush(); err != nil {
+		if err := writeAnswer(w, res, blob); err != nil {
 			return err
 		}
 	}
+}
+
+// writeAnswer keeps an answer and its blob together, whatever Notify is doing.
+func writeAnswer(w *bufio.Writer, res response, blob []byte) error {
+	notifier.Lock()
+	defer notifier.Unlock()
+	if err := writeLine(w, res); err != nil {
+		return err
+	}
+	if _, err := w.Write(blob); err != nil {
+		return err
+	}
+	return w.Flush()
 }
 
 // safeCall keeps one bad file from ending a helper: a parser that panics on it
@@ -226,6 +281,83 @@ type Conn struct {
 	r    *bufio.Reader
 	w    *bufio.Writer
 	next uint64
+
+	// OnNotify hears what a helper says unasked, if set before the first call. What it is
+	// given is untrusted and may arrive at any rate, so it checks and limits for itself. It
+	// runs while the Conn is reading, so it must not block or make a call.
+	OnNotify func(method string, params json.RawMessage)
+
+	frames chan frame // set by Listen
+}
+
+// frame is one answer from a helper, or the error that ended the reading.
+type frame struct {
+	res  response
+	blob []byte
+	err  error
+}
+
+// readFrame reads up to the next answer, passing on any notifications before it.
+func (c *Conn) readFrame() frame {
+	for {
+		line, err := readLine(c.r)
+		if err != nil {
+			return frame{err: err}
+		}
+		var m struct {
+			response
+			notification
+		}
+		if err := json.Unmarshal(line, &m); err != nil {
+			return frame{err: fmt.Errorf("unreadable answer: %w", err)}
+		}
+		if m.Notify != "" {
+			if c.OnNotify != nil {
+				c.OnNotify(m.Notify, m.notification.Params)
+			}
+			continue
+		}
+		if m.Blob < 0 || m.Blob > MaxBlob {
+			return frame{err: errors.New("the helper announced an impossible size")}
+		}
+		f := frame{res: m.response}
+		if m.Blob > 0 {
+			// Grows with what really arrives, so a false size costs nothing.
+			var buf bytes.Buffer
+			if _, err := io.CopyN(&buf, c.r, m.Blob); err != nil {
+				return frame{err: err}
+			}
+			f.blob = buf.Bytes()
+		}
+		return f
+	}
+}
+
+// Listen keeps reading between calls, for a helper that stays running: without it, nothing
+// reads the pipe while no call is being made, and a helper with a lot to say would stop at
+// Notify until the next call. It ends when the helper's output does. Call it once, before
+// the first call. A Conn that listens can't Stream.
+func (c *Conn) Listen() {
+	c.frames = make(chan frame, 1)
+	go func() {
+		for {
+			f := c.readFrame()
+			// This never blocks. An answer nobody asked for is replaced by the next, and
+			// if one is still waiting when a call begins, that call fails on its id.
+			select {
+			case c.frames <- f:
+			default:
+				select {
+				case <-c.frames:
+				default:
+				}
+				c.frames <- f
+			}
+			if f.err != nil {
+				return
+			}
+		}
+	}()
 }
 
 // NewConn wraps a helper's stdout and stdin.
@@ -264,43 +396,35 @@ func (c *Conn) Call(method string, params, out any) ([]byte, error) {
 	if err := c.w.Flush(); err != nil {
 		return nil, err
 	}
-	line, err := readLine(c.r)
-	if err != nil {
-		return nil, err
+	var f frame
+	if c.frames != nil {
+		f = <-c.frames
+	} else {
+		f = c.readFrame()
 	}
-	var res response
-	if err := json.Unmarshal(line, &res); err != nil {
-		return nil, fmt.Errorf("unreadable answer: %w", err)
+	if f.err != nil {
+		return nil, f.err
 	}
-	if res.ID != req.ID {
+	if f.res.ID != req.ID {
 		return nil, errors.New("the helper answered a different call")
 	}
-	if res.Blob < 0 || res.Blob > MaxBlob {
-		return nil, errors.New("the helper announced an impossible size")
+	if f.res.Error != "" {
+		return nil, &CallError{Code: f.res.Code, Message: f.res.Error}
 	}
-	var blob []byte
-	if res.Blob > 0 {
-		// Grows with what really arrives, so a false size costs nothing.
-		var buf bytes.Buffer
-		if _, err := io.CopyN(&buf, c.r, res.Blob); err != nil {
-			return nil, err
-		}
-		blob = buf.Bytes()
-	}
-	if res.Error != "" {
-		return nil, &CallError{Code: res.Code, Message: res.Error}
-	}
-	if out != nil && len(res.Result) > 0 {
-		if err := json.Unmarshal(res.Result, out); err != nil {
+	if out != nil && len(f.res.Result) > 0 {
+		if err := json.Unmarshal(f.res.Result, out); err != nil {
 			return nil, fmt.Errorf("unreadable answer: %w", err)
 		}
 	}
-	return blob, nil
+	return f.blob, nil
 }
 
 // Stream makes a call that a helper answers with a stream (ServeStream). It returns
 // what comes after the answer. Nothing else can be asked on this Conn afterwards.
 func (c *Conn) Stream(method string, params, out any) (io.Reader, error) {
+	if c.frames != nil {
+		return nil, errors.New("a Conn that listens can't stream")
+	}
 	if _, err := c.Call(method, params, out); err != nil {
 		return nil, err
 	}

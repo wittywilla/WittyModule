@@ -17,9 +17,10 @@ import (
 // older plugins, so that is done rarely.
 //
 // API 2 adds web bundles, programs, attached helpers and streams to API 1. Nothing
-// in API 1 changed, so a version built for it still runs.
+// in API 1 changed, so a version built for it still runs. API 3 adds notifications from
+// a helper and the pages a module adds to the app.
 const (
-	API    = 2
+	API    = 3
 	MinAPI = 1
 )
 
@@ -79,6 +80,26 @@ type Manifest struct {
 	Libraries []string `json:"libraries,omitempty"`
 	Requires  []string `json:"requires,omitempty"`
 	Core      bool     `json:"core,omitempty"`
+
+	// Pages are the pages it adds to the app, which its web bundle draws.
+	Pages []Page `json:"pages,omitempty"`
+}
+
+// Where a module's page is listed in the app.
+const (
+	PageMain     = "main"     // with the app's sections
+	PageSettings = "settings" // in Settings
+)
+
+// Page is a page a module adds to the app, at /m/<module>/<id>. Whether someone may see it
+// is the server's to check, and Admin only asks for that check: it never widens what the
+// bundle can do, since a bundle runs with the access of whoever is signed in.
+type Page struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Where string `json:"where"`
+	Icon  string `json:"icon,omitempty"` // a name from the app's own set of icons
+	Admin bool   `json:"admin,omitempty"`
 }
 
 var (
@@ -169,6 +190,26 @@ func (m *Manifest) Validate() error {
 		if p != PermissionNetwork {
 			return fmt.Errorf("manifest of %s: %q is not a permission", name, p)
 		}
+	}
+	if len(m.Pages) > 0 && m.Delivery != DeliveryWeb {
+		return fmt.Errorf("manifest of %s: only a web bundle can draw a page", name)
+	}
+	if len(m.Pages) > 16 {
+		return fmt.Errorf("manifest of %s: too many pages", name)
+	}
+	seen := map[string]bool{}
+	for _, p := range m.Pages {
+		switch {
+		case !wordRe.MatchString(p.ID) || seen[p.ID]:
+			return fmt.Errorf("manifest of %s: %q is not a page's id, or there are two of it", name, p.ID)
+		case p.Title == "" || !plainText(p.Title, 64, false):
+			return fmt.Errorf("manifest of %s: page %s needs a title, in one line of plain text", name, p.ID)
+		case p.Where != PageMain && p.Where != PageSettings:
+			return fmt.Errorf("manifest of %s: page %s is listed in %q, not %s or %s", name, p.ID, p.Where, PageMain, PageSettings)
+		case p.Icon != "" && !wordRe.MatchString(p.Icon):
+			return fmt.Errorf("manifest of %s: page %s has %q for an icon", name, p.ID, p.Icon)
+		}
+		seen[p.ID] = true
 	}
 	total := 0
 	for k, v := range m.Capabilities {
