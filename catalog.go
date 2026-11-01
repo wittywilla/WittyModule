@@ -491,10 +491,24 @@ func (c *Catalog) Put(mod CatalogModule, v CatalogVersion) (bool, error) {
 	}
 	have.Versions = append(have.Versions, v)
 	sort.SliceStable(have.Versions, func(i, j int) bool { return Compare(have.Versions[i].Version, have.Versions[j].Version) > 0 })
-	// What a module says about itself comes from its newest version.
+	// What a module says about itself comes from its newest version. Words it leaves out stay as they
+	// are, so a version with less to say can't blank what someone wrote for the store.
 	if have.Versions[0].Version == v.Version {
-		have.Name, have.Summary, have.Group, have.Libraries, have.Requires = mod.Name, mod.Summary, mod.Group, mod.Libraries, mod.Requires
-		have.Core, have.Needs, have.Updates, have.Stays, have.Repo = mod.Core, mod.Needs, mod.Updates, mod.Stays, mod.Repo
+		have.Name, have.Repo, have.Core, have.Requires = mod.Name, mod.Repo, mod.Core, mod.Requires
+		for _, f := range []struct {
+			to   *string
+			from string
+		}{{&have.Summary, mod.Summary}, {&have.Group, mod.Group}, {&have.Updates, mod.Updates}, {&have.Stays, mod.Stays}} {
+			if f.from != "" {
+				*f.to = f.from
+			}
+		}
+		if len(mod.Libraries) > 0 {
+			have.Libraries = mod.Libraries
+		}
+		if len(mod.Needs) > 0 {
+			have.Needs = mod.Needs
+		}
 	}
 	c.Serial++
 	return true, nil

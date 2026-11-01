@@ -210,3 +210,18 @@ func TestCatalogPut(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A version with less to say can't blank what's listed for the store.
+func TestCatalogPutKeepsWords(t *testing.T) {
+	c := testCatalog()
+	mod := c.Modules[0]
+	mod.Summary, mod.Group = "What the store says.", "photos"
+	c.Modules[0] = mod
+	bare := CatalogModule{ID: mod.ID, Name: mod.Name, Repo: mod.Repo}
+	if changed, err := c.Put(bare, testVersion("9.0.0")); err != nil || !changed {
+		t.Fatal(changed, err)
+	}
+	if got := c.Find(mod.ID); got.Summary != "What the store says." || got.Group != "photos" {
+		t.Fatalf("%+v", got)
+	}
+}
