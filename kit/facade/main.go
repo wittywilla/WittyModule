@@ -260,7 +260,7 @@ func (p *pkgInfo) carries(e ast.Expr) bool {
 		case *ast.SelectorExpr:
 			if id, isID := x.X.(*ast.Ident); isID {
 				switch id.Name + "." + x.Sel.Name {
-				case "time.Time", "time.Duration", "json.RawMessage", "net.IP", "net.HardwareAddr":
+				case "time.Time", "time.Duration", "json.RawMessage", "net.IP", "net.HardwareAddr", "netip.Addr":
 				case "context.Context":
 				default:
 					// Another package of this module is fine; anything else is for a person.
@@ -494,6 +494,18 @@ func stubs(cfg Config, p *pkgInfo, all map[string]*pkgInfo, cases, sentinels *by
 			continue
 		}
 		noteImports(d, used)
+		for _, im := range d.file.Imports {
+			path := strings.Trim(im.Path.Value, `"`)
+			n := path[strings.LastIndex(path, "/")+1:]
+			if im.Name != nil {
+				n = im.Name.Name
+			}
+			for _, a := range ps {
+				if !a.ctx && usesPackage(a.typ, n) {
+					imports[path] = n
+				}
+			}
+		}
 		writeStub(&body, p, cfg, fd, name, recv, ps, rs, hasErr, used)
 		writeCase(cases, p, fd, name, recv, ps, rs, hasErr, all, imports)
 		stubbed++
