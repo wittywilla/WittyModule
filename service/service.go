@@ -170,7 +170,7 @@ func callHandler(c Config) http.Handler {
 			}
 		}
 		for _, v := range rets {
-			raw, merr := json.Marshal(v)
+			raw, merr := Marshal(v)
 			if merr != nil {
 				a = callAnswer{Err: "the answer can't be sent: " + merr.Error()}
 				break
@@ -178,7 +178,7 @@ func callHandler(c Config) http.Handler {
 			a.Rets = append(a.Rets, raw)
 		}
 		if back != nil {
-			if raw, merr := json.Marshal(back); merr == nil {
+			if raw, merr := Marshal(back); merr == nil {
 				a.Back = raw
 			}
 		}
@@ -206,7 +206,7 @@ func Arg(args []json.RawMessage, i int, v any) error {
 	if i >= len(args) || len(args[i]) == 0 {
 		return nil
 	}
-	if err := json.Unmarshal(args[i], v); err != nil {
+	if err := Unmarshal(args[i], v); err != nil {
 		return fmt.Errorf("argument %d is unreadable: %w", i, err)
 	}
 	return nil
@@ -217,7 +217,7 @@ func Recv(raw json.RawMessage, v any) error {
 	if len(raw) == 0 {
 		return nil
 	}
-	if err := json.Unmarshal(raw, v); err != nil {
+	if err := Unmarshal(raw, v); err != nil {
 		return fmt.Errorf("the call's receiver is unreadable: %w", err)
 	}
 	return nil
@@ -318,12 +318,12 @@ func (c *Conn) Call(ctx context.Context, name string, recv, back any, args []any
 	body := callBody{}
 	var err error
 	if recv != nil {
-		if body.Recv, err = json.Marshal(recv); err != nil {
+		if body.Recv, err = Marshal(recv); err != nil {
 			return err
 		}
 	}
 	for _, a := range args {
-		raw, err := json.Marshal(a)
+		raw, err := Marshal(a)
 		if err != nil {
 			return err
 		}
@@ -361,13 +361,13 @@ func (c *Conn) Call(ctx context.Context, name string, recv, back any, args []any
 	}
 	for i, v := range out {
 		if i < len(a.Rets) {
-			if err := json.Unmarshal(a.Rets[i], v); err != nil {
+			if err := Unmarshal(a.Rets[i], v); err != nil {
 				return fmt.Errorf("the module's answer is unreadable: %w", err)
 			}
 		}
 	}
 	if back != nil && len(a.Back) > 0 {
-		if err := json.Unmarshal(a.Back, back); err != nil {
+		if err := Unmarshal(a.Back, back); err != nil {
 			return fmt.Errorf("the module's answer is unreadable: %w", err)
 		}
 	}

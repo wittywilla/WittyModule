@@ -5,6 +5,7 @@ What changed in WittyModule, newest first. What changed before it had a reposito
 
 ## Unreleased
 
+- A service and the server send every field across, by its Go name, including those hidden from JSON. Only what is live stays behind.
 - `pack` writes THIRD-PARTY-NOTICES.txt into each archive: the license of every library in a module's programs. A library with no license file stops it.
 - The kit: a helper with a part in the browser builds that first and packs them together, and modules without a lock file install their packages unlocked.
 
