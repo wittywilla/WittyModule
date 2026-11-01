@@ -47,7 +47,8 @@ jobs:
           go test ./... -count=1
 #@end
 #@if npm
-      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install
+        run: if [ -f package-lock.json ]; then npm ci --ignore-scripts --no-audit --no-fund; else npm install --ignore-scripts --no-audit --no-fund; fi
       - run: npm test --if-present
 #@end
 #@if signed app
@@ -78,18 +79,25 @@ jobs:
         run: |
           want="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' @@VERSION_FILE@@ | head -1)"
           [ "v$want" = "$GITHUB_REF_NAME" ] || { echo "@@VERSION_FILE@@ says $want, and the tag is $GITHUB_REF_NAME"; exit 1; }
+#@if webpart
+      - name: Install
+        run: if [ -f package-lock.json ]; then npm ci --ignore-scripts --no-audit --no-fund; else npm install --ignore-scripts --no-audit --no-fund; fi
+      - run: npm run build:bundle
+#@end
 #@if programs
       - name: Build every platform and write the checksum list
         run: go run @@TOOL@@ pack@@PACK_FLAGS@@ -out release .
 #@end
 #@if bundle
-      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install
+        run: if [ -f package-lock.json ]; then npm ci --ignore-scripts --no-audit --no-fund; else npm install --ignore-scripts --no-audit --no-fund; fi
       - run: npm run build:bundle
       - name: Pack the bundle and write the checksum list
         run: go run @@TOOL@@ pack -web dist -out release .
 #@end
 #@if app
-      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install
+        run: if [ -f package-lock.json ]; then npm ci --ignore-scripts --no-audit --no-fund; else npm install --ignore-scripts --no-audit --no-fund; fi
       - run: npm run build
       - name: Pack the built app
         run: |

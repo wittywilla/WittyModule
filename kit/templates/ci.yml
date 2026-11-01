@@ -63,10 +63,11 @@ jobs:
           done
 #@end
 #@if npm
-      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install
+        run: if [ -f package-lock.json ]; then npm ci --ignore-scripts --no-audit --no-fund; else npm install --ignore-scripts --no-audit --no-fund; fi
       - run: npm test --if-present
 #@end
-#@if bundle
+#@if bundle webpart
       - run: npm run build:bundle
 #@end
 #@if app
