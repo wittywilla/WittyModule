@@ -63,6 +63,10 @@ func main() {
 	note := fs.String("note", "", "for bump: what changed, for the changelog")
 	changelog := fs.String("changelog", "", "for bump: the changelog to add the note to")
 	consumer := fs.String("consumer", "", "for bump: the server's folder, to raise what it requires")
+	catalog := fs.String("catalog", "", "for catalog-add: the catalogue, made if it isn't there yet")
+	base := fs.String("base", "", "for catalog-add: where the release's files are, an https address or a path beside the catalogue (default: its GitHub release)")
+	pub := fs.String("pub", "", "for catalog-add and catalog-check: the public key the release or catalogue must be signed with")
+	publisher := fs.String("publisher", "", "for catalog-add: the publisher's name, for a module not listed yet (default: its repository's owner)")
 	_ = fs.Parse(os.Args[2:])
 	var err error
 	switch os.Args[1] {
@@ -86,6 +90,12 @@ func main() {
 		err = withdraw(*list, *module, *severity, *reason, *listKey, fs.Args())
 	case "restore":
 		err = restore(*list, fs.Args())
+	case "catalog-add":
+		err = catalogAdd(*catalog, *base, *changelog, *pub, *publisher, fs.Args())
+	case "catalog-check":
+		err = catalogCheck(*pub, fs.Args())
+	case "catalog-sign":
+		err = catalogSign(*key, fs.Args())
 	default:
 		usage()
 		os.Exit(2)
@@ -106,7 +116,10 @@ func usage() {
   wittymodule bump [-part patch|minor|major] [-to version] [-note text] [-changelog file] [-consumer folder] <folder>
   wittymodule needs-bump <folder>
   wittymodule withdraw -list file [-module id] [-severity broken|security] -reason text <version>
-  wittymodule restore -list file <version>`)
+  wittymodule restore -list file <version>
+  wittymodule catalog-add -catalog file [-base url] [-changelog file] [-pub key] [-publisher name] <release folder>
+  wittymodule catalog-check [-pub key] <catalog.json>
+  wittymodule catalog-sign [-key file] <catalog.json>`)
 }
 
 func defaultKey() string {
