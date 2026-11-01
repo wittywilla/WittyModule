@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"slices"
 	"sync"
 	"time"
 
@@ -267,7 +268,7 @@ func OnStart(module string, fn func(*Conn)) {
 // RunStarted runs what OnStart was given. A server calls it with a new connection.
 func RunStarted(module string, c *Conn) {
 	startMu.Lock()
-	fns := append([]func(*Conn)(nil), onStart[module]...)
+	fns := slices.Clone(onStart[module])
 	startMu.Unlock()
 	for _, fn := range fns {
 		fn(c)
