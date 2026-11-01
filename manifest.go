@@ -314,7 +314,7 @@ func (m *Manifest) ValidateRelease() error {
 // server of the given version and module API range; nil when it can.
 func (m *Manifest) Supports(server string, minAPI, maxAPI int) error {
 	if !Valid(server) {
-		return fmt.Errorf("this server's version (%q) can't be compared, so it uses its built-in %s", server, m.Name)
+		return fmt.Errorf("this server's version (%q) can't be compared, so it can't use %s", server, m.Name)
 	}
 	if Compare(server, m.MinServer) < 0 {
 		return fmt.Errorf("%s %s needs WittyMediaServer %s or newer, and this server is %s", m.Name, m.Version, m.MinServer, server)
