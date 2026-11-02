@@ -204,7 +204,16 @@ func needsBump(args []string) error {
 		fmt.Printf("%s is ahead of %s\n", m.Version, tag)
 		return nil
 	}
-	changed, err := gitIn(dir, "diff", "--name-only", tag, "HEAD", "--", ".", ":!*.md", ":!wiki", ":!.github", ":!LICENSE", ":!NOTICE")
+	// A folder with a manifest of its own is a module of its own, with its own version and tags.
+	looked := []string{"diff", "--name-only", tag, "HEAD", "--", ".", ":!*.md", ":!wiki", ":!.github", ":!LICENSE", ":!NOTICE"}
+	if folders, err := os.ReadDir(dir); err == nil {
+		for _, e := range folders {
+			if _, err := os.Stat(filepath.Join(dir, e.Name(), "module.json")); err == nil {
+				looked = append(looked, ":!"+e.Name())
+			}
+		}
+	}
+	changed, err := gitIn(dir, looked...)
 	if err != nil {
 		return fmt.Errorf("comparing with %s: %w", tag, err)
 	}

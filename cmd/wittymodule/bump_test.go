@@ -145,6 +145,18 @@ func TestNeedsBump(t *testing.T) {
 	if err := needsBump([]string{dir}); err != nil {
 		t.Fatalf("only documentation: %v", err)
 	}
+	if err := os.MkdirAll(filepath.Join(dir, "copy"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write("copy/module.json", "{}")
+	git("add", ".")
+	git("commit", "-qm", "a module of its own")
+	write("copy/code.go", "package y")
+	git("add", ".")
+	git("commit", "-qm", "its code")
+	if err := needsBump([]string{dir}); err != nil {
+		t.Fatalf("a folder with its own manifest: %v", err)
+	}
 	write("code.go", "package x")
 	git("add", ".")
 	git("commit", "-qm", "code")
