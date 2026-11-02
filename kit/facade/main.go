@@ -72,7 +72,6 @@ type pkgInfo struct {
 	manual  map[string]bool
 	local   map[string]bool
 	skipped []string
-	errs    []string // exported error variables
 }
 
 func main() {

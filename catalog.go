@@ -111,15 +111,15 @@ type CatalogModule struct {
 	// Screenshots are PNG or JPEG pictures of the module at work, at most 8 of 2 MiB each. They
 	// are fetched by the server when someone opens the module's page, and served from there.
 	Screenshots []CatalogFile `json:"screenshots,omitempty"`
-	Publisher   Publisher    `json:"publisher"`
-	Repo        string       `json:"repo"` // owner/name on GitHub, where its source and releases are
-	Group       string       `json:"group,omitempty"`
-	Libraries   []string     `json:"libraries,omitempty"`
-	Requires    []string     `json:"requires,omitempty"`
-	Core        bool         `json:"core,omitempty"`
-	Needs       []string     `json:"needs,omitempty"`
-	Updates     string       `json:"updates,omitempty"`
-	Stays       string       `json:"stays,omitempty"`
+	Publisher   Publisher     `json:"publisher"`
+	Repo        string        `json:"repo"` // owner/name on GitHub, where its source and releases are
+	Group       string        `json:"group,omitempty"`
+	Libraries   []string      `json:"libraries,omitempty"`
+	Requires    []string      `json:"requires,omitempty"`
+	Core        bool          `json:"core,omitempty"`
+	Needs       []string      `json:"needs,omitempty"`
+	Updates     string        `json:"updates,omitempty"`
+	Stays       string        `json:"stays,omitempty"`
 
 	Versions []CatalogVersion `json:"versions"`
 }
