@@ -2,6 +2,18 @@
 
 What a WittyMediaServer plugin needs to be a project of its own: the manifest, the rules for version ranges, the protocol a helper process speaks, and the tool that builds and signs a release. It's for people who make modules.
 
+<!-- pictures -->
+
+![The module store in WittyMediaServer](docs/images/module-store.webp)
+
+<sub>What a module becomes: its entry in the store, here from a local test catalogue.</sub>
+
+![A module's page in the store](docs/images/store-module.webp)
+
+<sub>A module's own page in the store.</sub>
+
+<!-- /pictures -->
+
 ## What it does
 
 - **The manifest:** `module.json`, parsed and checked here.
