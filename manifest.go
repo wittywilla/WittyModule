@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 WittyWilla and contributors
+
 // Package wittymodule is what a WittyMediaServer plugin needs to be a project of
 // its own: the manifest, the rules for version ranges, the protocol a helper
 // process speaks, and the names of a release's files. It has no dependencies, so

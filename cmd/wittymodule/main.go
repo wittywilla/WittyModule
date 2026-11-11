@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 WittyWilla and contributors
+
 // Command wittymodule checks, builds and signs a release of a WittyMediaServer
 // plugin, from the plugin's own folder. See docs/MODULES.md, "Releasing a plugin".
 //

@@ -99,7 +99,7 @@ kit/module-kit.sh ../WittyPhotos
 
 ## Licence
 
-Apache-2.0: see [LICENSE](LICENSE) and [NOTICE](NOTICE). If you redistribute it or build on it, keep the NOTICE attribution.
+GNU Affero General Public License v3.0 (or later): see [LICENSE](LICENSE) and [NOTICE](NOTICE). If you redistribute it or build on it, please keep the NOTICE attribution.
 
 ## Legal
 
@@ -126,5 +126,5 @@ To release:
    suffix, such as `v1.2.0-beta`, is published as a prerelease.
 3. Watch the *Actions* tab. There is nothing to sign.
 
-Licensed under Apache-2.0: see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Licensed under AGPL-3.0-or-later: see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 <!-- /module-kit -->

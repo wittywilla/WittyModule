@@ -2,7 +2,7 @@
   "id": "wittymodule",
   "name": "WittyModule",
   "version": "0.3.0",
-  "license": "Apache-2.0",
+  "license": "AGPL-3.0-or-later",
   "repo": "wittywilla/WittyModule",
   "delivery": "library",
   "api": 3,

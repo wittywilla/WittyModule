@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 WittyWilla and contributors
 # Writes what a module's own repository needs into its folder, from the templates in
 # kit/templates: its workflows, Dependabot's settings, a .gitignore, and
 # a section of its README. Safe to run again; what it writes depends only on the folder.
@@ -75,7 +77,7 @@ web_package() { # <folder>
   "name": "@wittywilla/$id",
   "version": "$version",
   "description": "$description",
-  "license": "Apache-2.0",
+  "license": "AGPL-3.0-or-later",
   "author": "WittyWilla (https://github.com/wittywilla)",
   "type": "module",
   "main": "./web/index.ts",
@@ -116,7 +118,7 @@ kit() { # <folder>
   [ -n "$id" ] && [ -n "$version" ] || { echo "$dir: no id or version found" >&2; exit 1; }
   # Each project says its own: not every one is under the same licence.
   license=$(field license "$dir/$version_file")
-  [ -n "$license" ] || license="Apache-2.0"
+  [ -n "$license" ] || license="AGPL-3.0-or-later"
 
   words=""
   [ -f "$dir/go.mod" ] && words="$words go"

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 WittyWilla and contributors
+
 // Command facade writes both ends of a service module's calls, so a server can use a module's
 // packages by name with none of its code compiled in. From each listed package it copies the
 // exported types and constants as they are, and writes:

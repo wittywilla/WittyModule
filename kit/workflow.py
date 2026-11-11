@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 WittyWilla and contributors
 """Checks and runs the workflows module-kit generates, for a dry run of a release.
 
   workflow.py lint <main repository's workflows folder> <workflow.yml>...

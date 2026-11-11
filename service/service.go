@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Copyright (C) 2026 WittyWilla and contributors
+
 // Package service is how a module that stays running reaches a server: a process of its own
 // that listens on this machine only, with a secret for each start, where calls can overlap and
 // a browser's connection can be passed straight through. It is for what a pipe with one call at a
