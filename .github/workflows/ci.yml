@@ -47,6 +47,11 @@ jobs:
           go mod tidy -diff
       - run: go vet ./...
       - run: go test ./... -count=1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: The TypeScript kit for modules' SDUI
+        run: node --test kit/sdui/tests/*.test.mjs
       - name: Build every platform
         run: |
           for t in windows/amd64 windows/arm64 darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 linux/arm linux/386 freebsd/amd64 freebsd/arm64; do

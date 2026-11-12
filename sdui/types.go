@@ -316,6 +316,9 @@ type SourceSpec struct {
 
 // Module is one module's SDUI file.
 type Module struct {
+	// Schema may name the JSON Schema an editor checks the file with
+	// (docs/sdui-module.schema.json); the server ignores it.
+	Schema string `json:"$schema,omitempty"`
 	// Format is ModuleFormat, FormatVersion ModuleFormatVersion.
 	Format        string `json:"format"`
 	FormatVersion int    `json:"formatVersion"`

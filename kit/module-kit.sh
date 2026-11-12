@@ -3,7 +3,9 @@
 # Copyright (C) 2026 WittyWilla and contributors
 # Writes what a module's own repository needs into its folder, from the templates in
 # kit/templates: its workflows, Dependabot's settings, a .gitignore, and
-# a section of its README. Safe to run again; what it writes depends only on the folder.
+# a section of its README. A module with a part in the browser (delivery web, or a
+# webEntry) also gets the TypeScript SDUI kit from kit/sdui in sdui/kit/. Safe to run
+# again; what it writes depends only on the folder.
 #
 #   kit/module-kit.sh ../WittyPhotos           a clone of a module's repository
 #   kit/module-kit.sh --tool v0.3.0 ...         the WittyModule version workflows use
@@ -20,6 +22,7 @@ set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
 templates="$here/templates"
+sdui="$here/sdui"
 
 tool_version=${WITTYMODULE_VERSION:-}
 if [ "${1:-}" = "--tool" ]; then
@@ -92,6 +95,27 @@ web_package() { # <folder>
   }
 }
 EOF
+}
+
+# A module with a part in the browser gets the TypeScript half of the SDUI kit in its own
+# repository, at sdui/kit/, so it builds its sdui.json from what it holds itself. Each file
+# is marked as written here; one that hasn't changed is left alone.
+sdui_kit() { # <folder>
+  local dst="$1/sdui/kit" f tmp
+  local note="Written by WittyModule's kit/module-kit.sh from kit/sdui: don't edit, run module-kit.sh again."
+  mkdir -p "$dst"
+  tmp=$(mktemp)
+  for f in wittymodule-sdui.ts write-sdui.mjs catalog.json sdui-module.schema.json README.md; do
+    case "$f" in
+      # After the licence lines, which stay first (or second, after a #! line).
+      *.ts | *.mjs) awk -v note="// $note" '{ print } /^\/\/ Copyright \(C\)/ && !done { print note; done = 1 }' "$sdui/$f" > "$tmp" ;;
+      *.md) { printf '<!-- %s -->\n\n' "$note"; cat "$sdui/$f"; } > "$tmp" ;;
+      # JSON has no comments; the README beside it says where it comes from.
+      *) cp "$sdui/$f" "$tmp" ;;
+    esac
+    cmp -s "$tmp" "$dst/$f" || cat "$tmp" > "$dst/$f"
+  done
+  rm -f "$tmp"
 }
 
 kit() { # <folder>
@@ -188,6 +212,10 @@ To take a version back, run the *withdraw* workflow from the *Actions* tab. It a
   render "$templates/dependabot.yml" "$dir/.github/dependabot.yml"
   [ -f "$dir/.gitignore" ] || cp "$templates/gitignore" "$dir/.gitignore"
   web_package "$dir"
+  case " $words " in
+    *" webpart "*) sdui_kit "$dir" ;;
+    *) [ "$delivery" != web ] || sdui_kit "$dir" ;;
+  esac
   readme "$dir"
   echo "module-kit: $dir ($delivery, WittyModule $tool_version)"
 }
