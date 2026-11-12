@@ -5,11 +5,14 @@ package sdui
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/wittywilla/wittymodule"
 )
 
 // boardGames is the worked example of docs/SDUI-MODULES.md, written with the kit.
@@ -141,4 +144,35 @@ func TestAnswers(t *testing.T) {
 		t.Error("settings from the environment")
 	}
 	_ = os.Getenv
+}
+
+// A catalogue's summary of the worked example: its page, its menu entry by the page's title
+// (it has no label of its own), its settings, its source and its insert.
+func TestSummary(t *testing.T) {
+	ui := Summary(boardGames())
+	want := wittymodule.CatalogUI{Pages: []wittymodule.CatalogUIPage{{ID: "wittyboardgames", Title: "Board games"}},
+		Navigation: []string{"Board games"}, Settings: true, Sources: 1, Inserts: 1}
+	if !reflect.DeepEqual(ui, want) {
+		t.Fatalf("%+v, want %+v", ui, want)
+	}
+	// What a file can't carry is cut to the catalogue's limits, so a summary always lists.
+	m := New("wittyx", "X")
+	for i := 0; i < 40; i++ {
+		m.AddPage(Page{ID: fmt.Sprintf("wittyx-%d", i), Kind: "custom", Title: strings.Repeat("t", 200)})
+	}
+	for i := 0; i < 20; i++ {
+		m.AddNav(NavItem{ID: fmt.Sprintf("wittyx-%d", i), Type: "route", Route: "/x", Label: "a\nlabel " + strings.Repeat("l", 60)})
+	}
+	ui = Summary(m)
+	if len(ui.Pages) != wittymodule.MaxUIPages || len([]rune(ui.Pages[0].Title)) != wittymodule.MaxUIPageTitle ||
+		len(ui.Navigation) != wittymodule.MaxUINavigation || strings.Contains(ui.Navigation[0], "\n") || len([]rune(ui.Navigation[0])) > wittymodule.MaxUILabel {
+		t.Fatalf("not cut to the limits: %d pages, %d entries, %q", len(ui.Pages), len(ui.Navigation), ui.Navigation[0])
+	}
+	if ui.Settings || ui.Sources != 0 || ui.Inserts != 0 {
+		t.Fatalf("%+v", ui)
+	}
+	c := wittymodule.CatalogVersion{UI: &ui}
+	if b, err := json.Marshal(c.UI); err != nil || !strings.Contains(string(b), `"pages":[`) {
+		t.Fatalf("%s %v", b, err)
+	}
 }

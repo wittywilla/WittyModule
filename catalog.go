@@ -102,6 +102,73 @@ type CatalogVersion struct {
 	Platforms map[string]CatalogFile `json:"platforms"`
 
 	Withdrawn *CatalogWithdrawn `json:"withdrawn,omitempty"`
+
+	// Status and StatusNote are the release manifest's own, for the store to show before
+	// anything is downloaded. What a server goes by is the signed manifest, which an install
+	// reads anyway: these are never a reason to install or refuse.
+	Status     string `json:"status,omitempty"`
+	StatusNote string `json:"statusNote,omitempty"`
+	// UI sums up what the version's sdui.json adds to the apps, for the store's page. It is
+	// written by `wittymodule catalog-add` from the file in the signed release; a version
+	// with no sdui.json has none.
+	UI *CatalogUI `json:"ui,omitempty"`
+}
+
+// CatalogUI sums up a version's sdui.json: its pages, its menu entries by label, whether it
+// has settings, and how many data sources and inserts into built-in pages it has.
+type CatalogUI struct {
+	Pages      []CatalogUIPage `json:"pages,omitempty"`
+	Navigation []string        `json:"navigation,omitempty"`
+	Settings   bool            `json:"settings,omitempty"`
+	Sources    int             `json:"sources,omitempty"`
+	Inserts    int             `json:"inserts,omitempty"`
+}
+
+// CatalogUIPage is one page a version adds.
+type CatalogUIPage struct {
+	ID    string `json:"id"`
+	Title string `json:"title"`
+}
+
+// Limits on a version's UI summary, which match what sdui.json itself may carry.
+const (
+	MaxUIPages      = 32
+	MaxUIPageTitle  = 120 // characters
+	MaxUINavigation = 16
+	MaxUILabel      = 40 // characters
+	MaxUISources    = 64
+	MaxUIInserts    = 32
+)
+
+var uiPageRe = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,63}$`) // an SDUI page id
+
+func (u *CatalogUI) validate() error {
+	switch {
+	case len(u.Pages) > MaxUIPages:
+		return fmt.Errorf("ui: more than %d pages", MaxUIPages)
+	case len(u.Navigation) > MaxUINavigation:
+		return fmt.Errorf("ui: more than %d menu entries", MaxUINavigation)
+	case u.Sources < 0 || u.Sources > MaxUISources:
+		return fmt.Errorf("ui: sources is between 0 and %d", MaxUISources)
+	case u.Inserts < 0 || u.Inserts > MaxUIInserts:
+		return fmt.Errorf("ui: inserts is between 0 and %d", MaxUIInserts)
+	}
+	seen := map[string]bool{}
+	for i, p := range u.Pages {
+		switch {
+		case !uiPageRe.MatchString(p.ID) || seen[p.ID]:
+			return fmt.Errorf("ui: pages[%d]: %q is not a page's id, or there are two of it", i, p.ID)
+		case strings.TrimSpace(p.Title) == "" || utf8.RuneCountInString(p.Title) > MaxUIPageTitle || !plainText(p.Title, 4*MaxUIPageTitle, false):
+			return fmt.Errorf("ui: pages[%d]: its title is one line of plain text of 1 to %d characters", i, MaxUIPageTitle)
+		}
+		seen[p.ID] = true
+	}
+	for i, l := range u.Navigation {
+		if strings.TrimSpace(l) == "" || utf8.RuneCountInString(l) > MaxUILabel || !plainText(l, 4*MaxUILabel, false) {
+			return fmt.Errorf("ui: navigation[%d]: a label is one line of plain text of 1 to %d characters", i, MaxUILabel)
+		}
+	}
+	return nil
 }
 
 // CatalogModule is one module and its versions, newest first.
@@ -324,6 +391,14 @@ func (v *CatalogVersion) validate() error {
 		}
 		if err := f.validate(maxArchiveSize); err != nil {
 			return fmt.Errorf("its %s archive: %w", p, err)
+		}
+	}
+	if ps := statusProblems(v.Status, v.StatusNote); len(ps) > 0 {
+		return errors.New(ps[0].String())
+	}
+	if v.UI != nil {
+		if err := v.UI.validate(); err != nil {
+			return err
 		}
 	}
 	if w := v.Withdrawn; w != nil {

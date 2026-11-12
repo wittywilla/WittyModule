@@ -4,20 +4,25 @@
 package main
 
 import (
+	"archive/tar"
+	"archive/zip"
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/wittywilla/wittymodule"
+	"github.com/wittywilla/wittymodule/sdui"
 )
 
 // catalogAdd lists one release in a catalogue, from the folder its files are in. The release
@@ -70,7 +75,10 @@ func catalogAdd(path, base, changelog, pubKey, publisher string, dirs []string) 
 	at := func(name string) string { return strings.TrimSuffix(base, "/") + "/" + name }
 
 	platforms := map[string]wittymodule.CatalogFile{}
-	addArchive := func(key, name string) error {
+	// The version's sdui.json, from the first archive that has it, checked against the signed
+	// list like the archive itself: the catalogue sums up what the release really carries.
+	var uiRaw []byte
+	addArchive := func(key, name, top string) error {
 		st, err := os.Stat(filepath.Join(dir, name))
 		if err != nil {
 			return nil // a release needn't have every platform
@@ -87,19 +95,36 @@ func catalogAdd(path, base, changelog, pubKey, publisher string, dirs []string) 
 			return fmt.Errorf("%s doesn't match the signed list", name)
 		}
 		platforms[key] = wittymodule.CatalogFile{URL: at(name), Size: st.Size(), SHA256: want}
+		if uiRaw == nil {
+			inside := top + "/" + wittymodule.SDUIFile
+			raw, err := fileInArchive(name, b, inside)
+			if err != nil {
+				return fmt.Errorf("%s: %w", name, err)
+			}
+			if raw != nil {
+				if sum := sha256.Sum256(raw); list[inside] != wittymodule.HashHex(sum[:]) {
+					return fmt.Errorf("%s in %s doesn't match the signed list", inside, name)
+				}
+				uiRaw = raw
+			}
+		}
 		return nil
 	}
 	if man.PerPlatform() {
 		for _, t := range wittymodule.Targets {
-			if err := addArchive(t.GOOS+"-"+t.GOARCH, man.Archive(t.GOOS, t.GOARCH)); err != nil {
+			if err := addArchive(t.GOOS+"-"+t.GOARCH, man.Archive(t.GOOS, t.GOARCH), man.Top(t.GOOS, t.GOARCH)); err != nil {
 				return err
 			}
 		}
-	} else if err := addArchive(wittymodule.PlatformAll, man.Archive("", "")); err != nil {
+	} else if err := addArchive(wittymodule.PlatformAll, man.Archive("", ""), man.Top("", "")); err != nil {
 		return err
 	}
 	if len(platforms) == 0 {
 		return fmt.Errorf("%s: no archives of %s %s", dir, man.ID, man.Version)
+	}
+	ui, err := releaseUI(man, uiRaw)
+	if err != nil {
+		return err
 	}
 
 	notes := ""
@@ -118,7 +143,8 @@ func catalogAdd(path, base, changelog, pubKey, publisher string, dirs []string) 
 		Repo: man.Repo, Group: man.Group, Libraries: man.Libraries, Requires: man.Requires, Core: man.Core, Needs: man.Needs, Updates: man.Updates, Stays: man.Stays}
 	ver := wittymodule.CatalogVersion{Version: man.Version, Delivery: man.Delivery, API: man.API, MinServer: man.MinServer, MaxServer: man.MaxServer,
 		License: man.License, Permissions: man.Permissions, Released: time.Now().UTC().Format(time.DateOnly), Prerelease: wittymodule.Prerelease(man.Version), Changelog: notes,
-		Sums: at(sumsName), Sig: at(sumsName + ".sig"), Manifest: at(filepath.Base(found[0])), Platforms: platforms}
+		Sums: at(sumsName), Sig: at(sumsName + ".sig"), Manifest: at(filepath.Base(found[0])), Platforms: platforms,
+		Status: man.Status, StatusNote: man.StatusNote, UI: ui}
 
 	c, err := readCatalog(path)
 	if err != nil {
@@ -137,6 +163,73 @@ func catalogAdd(path, base, changelog, pubKey, publisher string, dirs []string) 
 	}
 	fmt.Printf("%s %s listed in %s, serial %d\n", man.ID, man.Version, path, c.Serial)
 	return nil
+}
+
+// releaseUI sums up a release's sdui.json for its catalogue entry. A version that must carry
+// one and doesn't, or carries one a server would refuse, isn't listed: `wittymodule check`
+// and `pack` would have refused it too, and a server would.
+func releaseUI(man *wittymodule.Manifest, raw []byte) (*wittymodule.CatalogUI, error) {
+	if raw == nil {
+		if man.NeedsSDUI() {
+			return nil, fmt.Errorf("%s %s is built for module API %d, where a module carries its own SDUI, and its archives have no %s", man.ID, man.Version, man.API, wittymodule.SDUIFile)
+		}
+		return nil, nil
+	}
+	m, err := sdui.Parse(raw)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w", man.ID, man.Version, err)
+	}
+	if err := sdui.Errors(sdui.Check(m, man.ID)); err != nil {
+		return nil, fmt.Errorf("%s %s: its %s doesn't pass the checks a server makes:\n%w", man.ID, man.Version, wittymodule.SDUIFile, err)
+	}
+	ui := sdui.Summary(m)
+	return &ui, nil
+}
+
+// fileInArchive reads one file from a release archive (.zip, else .tar.gz), at most as large
+// as an sdui.json may be; nil when it isn't there.
+func fileInArchive(archive string, b []byte, name string) ([]byte, error) {
+	read := func(r io.Reader) ([]byte, error) {
+		out, err := io.ReadAll(io.LimitReader(r, sdui.MaxBytes+1))
+		if err == nil && len(out) > sdui.MaxBytes {
+			err = fmt.Errorf("%s is larger than %d bytes", name, sdui.MaxBytes)
+		}
+		return out, err
+	}
+	if strings.HasSuffix(archive, ".zip") {
+		zr, err := zip.NewReader(bytes.NewReader(b), int64(len(b)))
+		if err != nil {
+			return nil, err
+		}
+		for _, f := range zr.File {
+			if f.Name == name {
+				rc, err := f.Open()
+				if err != nil {
+					return nil, err
+				}
+				defer rc.Close()
+				return read(rc)
+			}
+		}
+		return nil, nil
+	}
+	gz, err := gzip.NewReader(bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+	tr := tar.NewReader(gz)
+	for {
+		h, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			return nil, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		if h.Name == name && h.Typeflag == tar.TypeReg {
+			return read(tr)
+		}
+	}
 }
 
 // readCatalog reads a catalogue, or starts one if there's no file yet.

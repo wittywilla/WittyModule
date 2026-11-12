@@ -7,6 +7,7 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -93,6 +94,47 @@ func TestCatalogRefusals(t *testing.T) {
 		"screenshot from elsewhere": func(c *Catalog) {
 			c.Modules[0].Screenshots = []CatalogFile{{URL: "http://example.test/a.png", Size: 1, SHA256: strings.Repeat("a", 64)}}
 		},
+		"unknown status":          func(c *Catalog) { c.Modules[0].Versions[0].Status = "alpha" },
+		"incomplete with no note": func(c *Catalog) { c.Modules[0].Versions[0].Status = StatusIncomplete },
+		"note with an escape": func(c *Catalog) {
+			c.Modules[0].Versions[0].Status, c.Modules[0].Versions[0].StatusNote = StatusBeta, "a\x1b[2Jb"
+		},
+		"note too long": func(c *Catalog) {
+			c.Modules[0].Versions[0].Status, c.Modules[0].Versions[0].StatusNote = StatusIncomplete, strings.Repeat("n", MaxStatusNote+1)
+		},
+		"ui: too many pages": func(c *Catalog) {
+			ui := &CatalogUI{}
+			for i := 0; i <= MaxUIPages; i++ {
+				ui.Pages = append(ui.Pages, CatalogUIPage{ID: fmt.Sprintf("p%d", i), Title: "P"})
+			}
+			c.Modules[0].Versions[0].UI = ui
+		},
+		"ui: title too long": func(c *Catalog) {
+			c.Modules[0].Versions[0].UI = &CatalogUI{Pages: []CatalogUIPage{{ID: "p", Title: strings.Repeat("t", MaxUIPageTitle+1)}}}
+		},
+		"ui: no title": func(c *Catalog) { c.Modules[0].Versions[0].UI = &CatalogUI{Pages: []CatalogUIPage{{ID: "p"}}} },
+		"ui: two of a page": func(c *Catalog) {
+			c.Modules[0].Versions[0].UI = &CatalogUI{Pages: []CatalogUIPage{{ID: "p", Title: "A"}, {ID: "p", Title: "B"}}}
+		},
+		"ui: bad page id": func(c *Catalog) {
+			c.Modules[0].Versions[0].UI = &CatalogUI{Pages: []CatalogUIPage{{ID: "../x", Title: "A"}}}
+		},
+		"ui: title with a line break": func(c *Catalog) {
+			c.Modules[0].Versions[0].UI = &CatalogUI{Pages: []CatalogUIPage{{ID: "p", Title: "a\nb"}}}
+		},
+		"ui: too many labels": func(c *Catalog) {
+			c.Modules[0].Versions[0].UI = &CatalogUI{Navigation: make([]string, MaxUINavigation+1)}
+			for i := range c.Modules[0].Versions[0].UI.Navigation {
+				c.Modules[0].Versions[0].UI.Navigation[i] = "L"
+			}
+		},
+		"ui: label too long": func(c *Catalog) {
+			c.Modules[0].Versions[0].UI = &CatalogUI{Navigation: []string{strings.Repeat("l", MaxUILabel+1)}}
+		},
+		"ui: empty label":      func(c *Catalog) { c.Modules[0].Versions[0].UI = &CatalogUI{Navigation: []string{" "}} },
+		"ui: negative sources": func(c *Catalog) { c.Modules[0].Versions[0].UI = &CatalogUI{Sources: -1} },
+		"ui: too many inserts": func(c *Catalog) { c.Modules[0].Versions[0].UI = &CatalogUI{Inserts: MaxUIInserts + 1} },
+		"ui: too many sources": func(c *Catalog) { c.Modules[0].Versions[0].UI = &CatalogUI{Sources: MaxUISources + 1} },
 	} {
 		c := testCatalog()
 		c.Modules[0].Versions[0].Platforms = map[string]CatalogFile{"linux-amd64": c.Modules[0].Versions[0].Platforms["linux-amd64"]}
@@ -103,6 +145,43 @@ func TestCatalogRefusals(t *testing.T) {
 	}
 	if err := testCatalog().Validate(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A version carries its manifest's status and a summary of its SDUI, at the limits.
+func TestCatalogStatusAndUI(t *testing.T) {
+	c := testCatalog()
+	v := &c.Modules[0].Versions[0]
+	v.Status, v.StatusNote = StatusIncomplete, strings.Repeat("é", MaxStatusNote)
+	ui := &CatalogUI{Settings: true, Sources: MaxUISources, Inserts: MaxUIInserts}
+	for i := 0; i < MaxUIPages; i++ {
+		ui.Pages = append(ui.Pages, CatalogUIPage{ID: fmt.Sprintf("wittyplay-%d", i), Title: strings.Repeat("ü", MaxUIPageTitle)})
+	}
+	for i := 0; i < MaxUINavigation; i++ {
+		ui.Navigation = append(ui.Navigation, strings.Repeat("ß", MaxUILabel))
+	}
+	v.UI = ui
+	raw, err := json.Marshal(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ParseCatalog(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gv := got.Find("wittyplay").Find("0.3.0")
+	if gv.Status != StatusIncomplete || gv.UI == nil || len(gv.UI.Pages) != MaxUIPages || !gv.UI.Settings {
+		t.Fatalf("%+v", gv)
+	}
+	// Neither is compared with the release: the signed manifest is what a server goes by.
+	m := &Manifest{ID: "wittyplay", Version: "0.3.0", Delivery: v.Delivery, API: v.API, MinServer: v.MinServer, MaxServer: v.MaxServer, License: v.License}
+	if err := gv.MatchesManifest("wittyplay", m); err != nil {
+		t.Fatal(err)
+	}
+	// Without them, an entry is written as before.
+	b, _ := json.Marshal(testVersion("0.3.0"))
+	if strings.Contains(string(b), "status") || strings.Contains(string(b), `"ui"`) {
+		t.Fatalf("%s", b)
 	}
 }
 
