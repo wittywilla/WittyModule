@@ -379,11 +379,11 @@ func (v *validator) sections(list []Section, path string, depth int, parent stri
 		if s.Component == "Grid" {
 			grids[s.ID] = s
 		}
-		if (s.Component == "Tab") != (parent == "Tabs") {
+		if (s.Component == "Tab") != (parent == "Tabs" || parent == "CrossBar") {
 			if s.Component == "Tab" {
-				v.err(sp+"/component", "Put the Tab inside a Tabs section.", "a Tab belongs inside Tabs")
+				v.err(sp+"/component", "Put the Tab inside a Tabs section.", "a Tab belongs inside Tabs or a CrossBar")
 			} else {
-				v.err(sp+"/component", "Wrap it in a Tab.", "Tabs holds only Tab sections, not %s", s.Component)
+				v.err(sp+"/component", "Wrap it in a Tab.", "Tabs and a CrossBar hold only Tab sections, not %s", s.Component)
 			}
 		}
 		if parent == "List" && s.Component != "ListItem" {
@@ -429,10 +429,10 @@ func (v *validator) sections(list []Section, path string, depth int, parent stri
 		if s.Component == "Split" && len(s.Children) != 2 {
 			v.err(sp+"/children", "Give it exactly two sections; use a Stack inside one for more.", "Two columns needs exactly two sections, not %d", len(s.Children))
 		}
-		if s.Component == "Tabs" && len(s.Children) == 0 {
+		if (s.Component == "Tabs" || s.Component == "CrossBar") && len(s.Children) == 0 {
 			v.err(sp+"/children", "Add a Tab.", "Tabs needs at least one Tab")
 		}
-		if s.Component == "Tabs" {
+		if s.Component == "Tabs" || s.Component == "CrossBar" {
 			if d := propStr(s.Props, "default", ""); d != "" {
 				found := false
 				for _, c := range s.Children {
@@ -498,6 +498,9 @@ func (v *validator) repeat(s *Section, sp string, depth int, parent string) {
 	}
 	if (rp.Over == "bookSeries" || rp.Over == "bookAuthors") && v.page != nil && v.page.Kind != "library" {
 		v.err(sp+"/repeat/over", "Use it on a library page, or repeat over libraries.", "%s goes over the page's books library, so it works only on a library page", rp.Over)
+	}
+	if rp.Over == "personParts" && v.page != nil && v.page.Kind != "detail" {
+		v.err(sp+"/repeat/over", "Use it on a person's page (a detail page matching mediaKind person).", "personParts goes over the page's person, so it works only on a detail page")
 	}
 	if rp.Limit < 0 || rp.Limit > 50 {
 		v.err(sp+"/repeat/limit", "", "a repeat's limit is between 0 and 50")
@@ -753,7 +756,7 @@ func (v *validator) source(s *Section, spec *ComponentSpec, sp string, nested bo
 			}
 		}
 	}
-	if style := propStr(s.Props, "cardStyle", "auto"); style != "auto" && s.Component != "List" {
+	if style := propStr(s.Props, "cardStyle", "auto"); style != "auto" && s.Component != "List" && s.Component != "NumberedRow" {
 		if cs, ok := CardStyle(style); ok && len(cs.Kinds) > 0 {
 			match := false
 			for _, k := range src.Yields {

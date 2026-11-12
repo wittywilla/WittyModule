@@ -4,6 +4,8 @@
 package sdui
 
 import (
+	"bytes"
+	"embed"
 	"encoding/json"
 	"strings"
 	"sync"
@@ -20,19 +22,21 @@ const (
 	FormTablet  = "tablet"
 	FormDesktop = "desktop"
 	FormWeb     = "web"
+	// FormHeadset is a headset (visionOS, Quest): a floating window, gaze and pinch.
+	FormHeadset = "headset"
 )
 
 var (
 	// FormFactors are the kinds of device a page is fitted to.
-	FormFactors = []string{FormTV, FormPhone, FormTablet, FormDesktop, FormWeb}
+	FormFactors = []string{FormTV, FormPhone, FormTablet, FormDesktop, FormWeb, FormHeadset}
 	// Platforms are the apps a condition can name.
-	Platforms = []string{"web", "tvos", "ios", "android", "androidtv", "desktop"}
+	Platforms = []string{"web", "tvos", "ios", "android", "androidtv", "desktop", "visionos", "quest"}
 	// ProfileKinds are the kinds of profile.
 	ProfileKinds = []string{"adult", "kids", "guest"}
 	// LibraryKinds are the kinds of library a page or repeat can name.
 	LibraryKinds = []string{"movies", "discs", "shows", "anime", "videos", "shorts", "channels", "musicvideos", "commercials", "music", "audiobooks", "podcasts", "radio", "books", "photos", "games"}
 	// MediaKinds are the kinds of title a detail page can match.
-	MediaKinds = []string{"movie", "show", "episode", "video", "disc", "album", "artist", "track", "book", "audiobook", "podcast", "game", "photo", "collection"}
+	MediaKinds = []string{"movie", "show", "episode", "video", "disc", "album", "artist", "track", "book", "audiobook", "podcast", "game", "photo", "collection", "person"}
 	// SpacingSteps are the abstract distances a layout component may use; a
 	// device profile says how many points each is.
 	SpacingSteps = []string{"none", "xs", "s", "m", "l", "xl"}
@@ -52,7 +56,17 @@ var (
 	// NativeViews are parts of a page an app may draw itself (NativeView).
 	NativeViews = []string{"guide", "photoTimeline", "photoMap", "coverFlow"}
 	// RepeatKinds are what a section can be repeated over.
-	RepeatKinds = []string{"libraries", "pinnedViews", "collections", "bookSeries", "bookAuthors"}
+	RepeatKinds = []string{"libraries", "pinnedViews", "collections", "bookSeries", "bookAuthors", "personParts"}
+	// CreditGroups are the parts of a title's credits, in the order a page lists them: the
+	// cast, the guest stars, then each crew department. The keys are the API's
+	// (GET /items/{id}/credits).
+	CreditGroups     = opts(creditGroupSpecs...)
+	creditGroupSpecs = []string{"cast|Cast", "guests|Guest stars", "directing|Directing", "writing|Writing", "production|Production", "camera|Camera",
+		"lighting|Lighting", "editing|Editing", "sound|Sound", "art|Art", "costume|Costume & Make-Up", "effects|Visual Effects", "crew|Crew"}
+	// PersonParts are what a person did, as their page groups their titles: acting, then the
+	// departments.
+	PersonParts     = opts(personPartSpecs...)
+	personPartSpecs = append([]string{"acting|Acting"}, creditGroupSpecs[2:]...)
 	// Weekdays as a condition names them, Sunday first as time.Weekday counts.
 	Weekdays = []string{"sun", "mon", "tue", "wed", "thu", "fri", "sat"}
 	// Placements are where a navigation entry can sit.
@@ -69,6 +83,12 @@ var Icons = []string{
 }
 
 func ip(n int) *int { return &n }
+
+// rev6 marks a property as added in catalogue revision 6 (Design 2, the experiences).
+func rev6(p PropSpec) PropSpec {
+	p.Since = 6
+	return p
+}
 
 // rev3 marks a property as added in catalogue revision 3 (Design 2).
 func rev3(p PropSpec) PropSpec {
@@ -144,13 +164,14 @@ func example(v string) json.RawMessage {
 var cardStyleOptions = []string{
 	"auto|The source's usual style", "poster|Poster", "landscape|Landscape", "progress|Landscape with progress", "episode|Episode",
 	"square|Square", "circle|Circle", "album|Album", "person|Person", "book|Book cover", "game|Game box", "photo|Photo",
-	"channel|Channel", "tile|Tile", "chip|Chip",
+	"channel|Channel", "tile|Tile", "chip|Chip", "plate|Plate", "block|Block", "logo|Logo tile",
 }
 
 var (
 	propTitle     = pText("title", "Title", "The heading above the items. Placeholders such as {library} and {each} are filled in.", 120)
 	propSubtitle  = pText("subtitle", "Subtitle", "A smaller line under the title.", 160)
 	propCardStyle = pEnum("cardStyle", "Card style", "How each item is drawn. Auto uses the style that suits the source.", "auto", cardStyleOptions...)
+	propHeading   = rev6(pEnum("headingStyle", "Heading style", "How the title is drawn: plain, a coloured band across the row, or underlined. Left plain, the experience chooses.", "plain", "plain|Plain", "band|Band", "underline|Underline"))
 	propCardSize  = pEnum("cardSize", "Card size", "Small, medium or large cards. A profile may choose its own.", "m", "s|Small", "m|Medium", "l|Large")
 	propEmpty     = pEnum("empty", "When there is nothing to show", "Leave the section out, or keep it with a message.", "hide", "hide|Leave it out", "message|Show a message")
 	propEmptyText = pText("emptyText", "Message when empty", "Shown in place of the items when there are none.", 200)
@@ -205,13 +226,13 @@ func buildComponents() []ComponentSpec {
 
 		{Type: "Shelf", Label: "Row", Icon: "list", Category: "media", Since: 2, Authored: true, Data: "required", Focus: "group",
 			Description: "A titled row of cards that scrolls sideways. The workhorse of a home page.",
-			Props: []PropSpec{propTitle, propSubtitle, propCardStyle, propCardSize,
+			Props: []PropSpec{propTitle, propSubtitle, propHeading, propCardStyle, propCardSize,
 				pBool("showTitles", "Show titles under cards", "Off draws the pictures alone; the titles are still read out.", true),
 				pEnum("seeAll", "See all", "A link to everything the row is drawn from, when the source has such a place.", "auto", "auto|When there is more", "always|Always", "never|Never"),
 				pBool("numbered", "Number the cards", "Large rank numbers beside the cards, for a top ten.", false),
 				pInt("maxItems", "Most cards at first", "How many cards are sent before the row asks for more. 0 uses the device's own limit.", 0, 0, 60),
 				rev3(pBool("peek", "Show the next card's edge", "layout.peek of the next card's width stays visible at the row's trailing edge, so it is clear the row scrolls on. Off cuts the row at a whole card.", true)),
-				rev3(pEnum("seeAllCard", "See all as a card", "See all as the last card of the row, in the shape of the row's cards, in place of the link beside the heading. Automatic: on a television and in the layouts that ask for it (TV rows, Streaming style).", "auto", "auto|Where the layout says", "always|Always", "never|Never")),
+				rev3(pEnum("seeAllCard", "See all as a card", "See all as the last card of the row, in the shape of the row's cards, in place of the link beside the heading. Automatic: on a television and in the experiences that ask for it (Stage, Big picture).", "auto", "auto|Where the layout says", "always|Always", "never|Never")),
 				propEmpty, propEmptyText,
 			},
 			Renders: map[string]string{
@@ -226,7 +247,7 @@ func buildComponents() []ComponentSpec {
 
 		{Type: "Grid", Label: "Grid", Icon: "grid", Category: "media", Since: 2, Authored: true, Data: "required", Focus: "group",
 			Description: "Cards in rows and columns, as many columns as fit. It pages as the person scrolls: the body of a library.",
-			Props: []PropSpec{propTitle, propCardStyle, propCardSize,
+			Props: []PropSpec{propTitle, propHeading, propCardStyle, propCardSize,
 				pBool("showTitles", "Show titles under cards", "Off draws the pictures alone.", true),
 				pInt("maxItems", "Most cards at first", "How many cards the first page holds. 0 uses the device's own limit.", 0, 0, 200),
 				propEmpty, propEmptyText,
@@ -281,6 +302,74 @@ func buildComponents() []ComponentSpec {
 			Description: "One tab of a Tabs section: a label and the sections shown when it is chosen.",
 			Props:       []PropSpec{req(pText("label", "Label", "The tab's name.", 40)), propIcon},
 			A11y:        "Role: tab. Label: the label."},
+
+		{Type: "Carousel", Label: "Carousel", Icon: "movie", Category: "media", Since: 6, Authored: true, Data: "required", Focus: "group",
+			Description: "A centred carousel of posters with the focused one large and its neighbours smaller: one big title at a time.",
+			Props: []PropSpec{propTitle, propHeading, propCardStyle, propCardSize,
+				rev6(pBool("showTitles", "Show the focused title", "The focused card's title and facts under it.", true)),
+				rev6(pInt("maxItems", "Most cards at first", "How many cards are sent before the row asks for more. 0 uses the device's own limit.", 0, 0, 40)),
+				propEmpty, propEmptyText,
+			},
+			Renders: map[string]string{
+				"tv":      "A row of cards centred on the focused one, which is drawn at 1.25 times the others with the focus ring; left and right move the row so the focused card stays in the middle; its title, facts and a Play button are under it. The row is one focus section.",
+				"phone":   "The same, swiped: the card in the middle is large, the next and previous peek in by layout.peek.",
+				"desktop": "The same, with arrow buttons at both edges on hover and the arrow keys moving the focused card.",
+			},
+			States:  statesData,
+			A11y:    "Role: list, labelled by the title. The focused card is announced with its position, \"<title>, <n> of <total>\".",
+			Example: example(`{"id":"marquee","component":"Carousel","props":{"title":"Tonight"},"source":{"type":"featured","limit":8}}`)},
+
+		{Type: "CrossBar", Label: "Cross bar", Icon: "game", Category: "navigation", Since: 6, Authored: true, Data: "none", Container: true, Children: []string{"Tab"}, Focus: "group",
+			Description: "A horizontal bar of categories with a vertical list under the chosen one, as a game console has. Only the selected category's content is sent; choosing another asks for the page again with tab=<id>.",
+			Props:       []PropSpec{rev6(pOf(PropSection, "default", "Opens on", "The category shown first. A profile may choose its own."))},
+			Renders: map[string]string{
+				"tv":      "Icons with names along a bar a third of the way down the screen; left and right move the bar, the chosen category's list opens below it in the title size, up and down move through it, OK opens an entry.",
+				"phone":   "A scrolling row of icons and names under the title; the list under it is the page.",
+				"desktop": "The same as the television's, with the pointer choosing a category.",
+			},
+			A11y:    "Role: tablist; each Tab is a tab with selected state; the list under it is its tabpanel.",
+			Example: example(`{"id":"cross","component":"CrossBar","children":[{"id":"films","component":"Tab","props":{"label":"Films","icon":"movie"},"children":[{"id":"films-list","component":"List","props":{"dense":true},"source":{"type":"recentlyAdded","library":"$library"}}]}]}`)},
+
+		{Type: "WidgetGrid", Label: "Widgets", Icon: "grid", Category: "layout", Since: 6, Authored: true, Data: "none", Container: true, Children: []string{"Widget"}, Focus: "group",
+			Description: "A grid of widgets, each in its own cell: continue watching, what is on TV now, statistics, the server's status, a clock. Every cell can be moved and resized by the administrator and by the profile.",
+			Props:       []PropSpec{rev6(pInt("columns", "Columns", "How many columns the grid has on a wide screen; narrower windows use fewer.", 4, 1, 12))},
+			Renders: map[string]string{
+				"tv":      "layout.dock aside, the safe area's width divided into the columns, cells layout.spacing.m apart; focus moves cell to cell by direction, and a cell with items is a row inside it.",
+				"phone":   "Two columns at most; a widget wider than that takes the full width.",
+				"desktop": "The columns the grid says, widgets keeping their cells.",
+			},
+			A11y:    "Role: group, labelled by the page's title. Each widget is a region labelled by its title.",
+			Example: example(`{"id":"widgets","component":"WidgetGrid","children":[{"id":"clock","component":"Widget","props":{"kind":"clock","x":0,"y":0,"w":1,"h":1}}]}`)},
+
+		{Type: "Widget", Label: "Widget", Icon: "chart", Category: "layout", Since: 6, Authored: true, Data: "optional", Container: false, Focus: "group",
+			Description: "One cell of a widget grid. Its kind says what it shows; kinds that list titles take their items from their kind's source, or from the section's own.",
+			Props: []PropSpec{
+				rev6(pEnum("kind", "Kind", "What the widget shows.", "continue", "continue|Continue watching", "liveNow|On TV now", "stats|Statistics", "serverStatus|Server status", "clock|Clock", "recordings|Recordings")),
+				rev6(pText("title", "Title", "The widget's heading; left empty it is the kind's own.", 60)),
+				rev6(pInt("x", "Column", "The cell's column, from 0.", 0, 0, 11)), rev6(pInt("y", "Row", "The cell's row, from 0.", 0, 0, 40)),
+				rev6(pInt("w", "Width", "Columns the cell spans.", 1, 1, 12)), rev6(pInt("h", "Height", "Rows the cell spans.", 1, 1, 8)),
+			},
+			Renders: map[string]string{
+				"all": "A panel at elevation 1 with its title in the heading size. continue, liveNow and recordings hold a row of cards (or a list when the cell is narrow); stats holds the statistics source as a figure or a short list; serverStatus holds a line per figure (libraries, playing now, free space); clock draws the time and date in the device's own format and needs no data.",
+			},
+			A11y:    "Role: region, labelled by the title.",
+			Example: example(`{"id":"now","component":"Widget","props":{"kind":"liveNow","w":2,"h":1}}`)},
+
+		{Type: "NumberedRow", Label: "Numbered rows", Icon: "list", Category: "media", Since: 6, Authored: true, Data: "required", Focus: "group",
+			Description: "Listing rows with a number column: a channel's number, or the place in the list. A guide's channel list, a top ten.",
+			Props: []PropSpec{propTitle, propHeading,
+				rev6(pEnum("numbers", "Numbers", "Channel numbers where the items are channels, else their place in the list.", "auto", "auto|Channel or place", "index|Place in the list")),
+				rev6(pInt("maxItems", "Most rows at first", "How many rows are sent before the list asks for more. 0 uses the device's own limit.", 0, 0, 100)),
+				propEmpty, propEmptyText,
+			},
+			Renders: map[string]string{
+				"tv":      "A row per item at layout.text.title: the number in a fixed column at the start (as wide as the longest), the logo or picture, then the title and subtitle; the focused row is filled.",
+				"phone":   "Full-width rows 56 points tall with the number at the start.",
+				"desktop": "A table: number, title, subtitle; double-click opens.",
+			},
+			States:  statesData,
+			A11y:    "Role: list, labelled by the title. Each row: \"<number>, <title>, <subtitle>\".",
+			Example: example(`{"id":"channels","component":"NumberedRow","props":{"title":"Channels"},"source":{"type":"liveNow"}}`)},
 
 		{Type: "FilterBar", Label: "Filter and sort", Icon: "filter", Category: "navigation", Since: 2, Authored: true, Data: "none", Focus: "stop",
 			Description: "The controls that filter and sort a Grid on the same page. The server fills in each filter's choices from what the library holds; a change asks for the page again with the choice as a query parameter. With showCount, the server sends count (a number) and countText, the words to show (\"1 title\", \"12 titles\").",
@@ -339,7 +428,8 @@ func buildComponents() []ComponentSpec {
 				pList("actions", "Buttons", "The buttons offered, in order. One the title or the profile can't use is left out.", []string{"play", "restart", "watchLater", "watched", "download", "share"},
 					"play|Play or Resume", "restart|Play from the start", "watchLater|Watch later", "watched|Mark watched", "download|Download", "share|Share", "playOn|Play on another device", "watchParty|Watch party"),
 				pList("facts", "Facts", "The line of facts under the title, in order.", []string{"year", "runtime", "contentRating", "rating", "genres"},
-					"year|Year", "runtime|Running time", "contentRating|Certificate", "rating|Score", "genres|Genres", "studio|Studio", "count|How many it holds", "season|Season and episode"),
+					"year|Year", "runtime|Running time", "contentRating|Certificate", "rating|Score", "genres|Genres", "studio|Studio", "count|How many it holds", "season|Season and episode",
+					"knownFor|Known for (a person)", "born|Born (a person)", "died|Died (a person)"),
 				pBool("showOverview", "Show the synopsis", "", true),
 				pBool("showTagline", "Show the tagline", "", true),
 			},
@@ -383,6 +473,26 @@ func buildComponents() []ComponentSpec {
 			States:  statesData,
 			A11y:    "Role: list. Each track: \"Track <n>, <title>, <artist>, <minutes> minutes <seconds> seconds\".",
 			Example: example(`{"id":"tracks","component":"TrackList","source":{"type":"tracks","library":"$library","artist":"$artist","album":"$album"}}`)},
+
+		{Type: "Credits", Label: "Cast and crew", Icon: "users", Category: "detail", Since: 6, Authored: true, Data: "required", Accepts: []string{"credits"}, Focus: "group",
+			Description: "Who is in a title and who made it: the cast as a row of portraits with the part each played, then the crew by department (Directing, Writing, Production, Camera, Editing, Sound, Art, Costume & Make-Up, Visual Effects ...), with Show all when there are more. Each person opens their own page.",
+			Props: []PropSpec{
+				pText("title", "Title", "The heading above the cast.", 120),
+				pList("parts", "Shows", "Which parts are shown, in this order.", []string{"cast", "guests", "crew"}, "cast|The cast", "guests|Guest stars", "crew|The crew"),
+				pInt("castLimit", "Cast at first", "How many of the cast (and of the guest stars) are sent before Show all. 0 sends the device's row of cards.", 20, 0, 100),
+				pInt("crewLimit", "Crew at first", "How many people of each department are sent before Show all.", 6, 0, 50),
+				pList("departments", "Departments", "Which crew departments are listed, in order.", values(CreditGroups[2:]), creditGroupSpecs[2:]...),
+				propCardSize,
+			},
+			Renders: map[string]string{
+				"tv":      "The title at the heading size, then the cast as one row of round portraits 40 points apart that scrolls sideways under focus, name under each and the part played under that; then the guest stars the same way; then each department as a heading and a row of focusable name-and-job chips. Show all is a final card of the cast row and asks props.more.url.",
+				"phone":   "The title with a Show all chevron, the cast as a row of round portraits that bleeds off both edges, then each department as a caption-sized heading and a wrapping list of \"<name>, <job>\" lines, each one a link.",
+				"tablet":  "As a phone with 16-point gaps.",
+				"desktop": "The title and a Show all button at its end; the cast row with arrow buttons on hover; the crew in columns of departments (as many as fit, at least 220 points each), each a heading and its people, name in body and job in caption.",
+			},
+			States:  statesData,
+			A11y:    "Role: region labelled by the title. The cast row is a list labelled \"Cast\"; each card's label is \"<name>, <part>\". Each department is a list labelled by its name; each person's label is \"<name>, <job>\". A person without a photo shows their initials on token bg3, hidden from assistive technology.",
+			Example: example(`{"id":"credits","component":"Credits","source":{"type":"credits","item":"$item"}}`)},
 
 		{Type: "Track", Label: "Track", Icon: "music", Category: "detail", Since: 2, Data: "none", Focus: "item",
 			Description: "One row of a TrackList. Made by the server.",
@@ -504,7 +614,7 @@ func buildComponents() []ComponentSpec {
 
 		{Type: "List", Label: "List", Icon: "list", Category: "media", Since: 2, Authored: true, Data: "optional", Container: true, Children: []string{"ListItem"}, Focus: "group",
 			Description: "Rows of text with an icon or small picture, written by hand or drawn from a source.",
-			Props:       []PropSpec{propTitle, pBool("dense", "Compact rows", "", false), propEmpty, propEmptyText},
+			Props:       []PropSpec{propTitle, propHeading, pBool("dense", "Compact rows", "", false), propEmpty, propEmptyText},
 			Renders:     map[string]string{"all": "Full-width rows (56 points, 44 dense, 90 on a television): picture or icon, title over subtitle, trailing text, and a chevron when the row opens something."},
 			States:      statesData,
 			A11y:        "Role: list labelled by the title.",
@@ -547,8 +657,8 @@ func buildCardStyles() []CardStyleSpec {
 			Description: "An album cover with the album and artist under it.", Kinds: []string{"album"}},
 		{Style: "circle", Label: "Circle", Shape: "circle", Aspect: "1/1", Image: []string{"square", "poster"}, Shows: []string{"title"}, TitleLines: 2, SubtitleLines: 0,
 			Description: "A round picture with a centred name."},
-		{Style: "person", Label: "Person", Shape: "circle", Aspect: "1/1", Image: []string{"square", "poster"}, Shows: []string{"title", "subtitle"}, TitleLines: 1, SubtitleLines: 1,
-			Description: "A round portrait with a name and a line under it: an artist, an author.", Kinds: []string{"artist"}},
+		{Style: "person", Label: "Person", Shape: "circle", Aspect: "1/1", Image: []string{"square", "poster"}, Shows: []string{"title", "subtitle", "badges"}, TitleLines: 1, SubtitleLines: 1,
+			Description: "A round portrait with a name and a line under it: an artist, an author, someone in a title's cast or crew (the line is the part they played or their job), a friend (the line is where they are and the badge their presence). A person's initials stand in for a missing photo. The card opens something only when the item has a route; without one it is not a button and takes no focus.", Kinds: []string{"artist", "person"}},
 		{Style: "book", Label: "Book cover", Shape: "poster", Aspect: "2/3", Image: []string{"poster"}, Shows: []string{"title", "subtitle", "progress"}, TitleLines: 2, SubtitleLines: 1,
 			Description: "A book or comic cover with the title and author, and how far it has been read.", Kinds: []string{"book"}},
 		{Style: "game", Label: "Game box", Shape: "poster", Aspect: "3/4", Image: []string{"poster"}, Shows: []string{"title", "subtitle", "badges"}, TitleLines: 1, SubtitleLines: 1,
@@ -559,6 +669,12 @@ func buildCardStyles() []CardStyleSpec {
 			Description: "A channel's logo on a plain tile, its number and name, what is on now with how far through it is, and what is next.", Kinds: []string{"channel"}},
 		{Style: "tile", Label: "Tile", Shape: "landscape", Aspect: "16/9", Image: []string{"backdrop", "poster"}, Shows: []string{"title", "count"}, TitleLines: 1, SubtitleLines: 0,
 			Description: "A wide tile with its name over the picture, or over a plain tile with an icon: a library, a collection.", Kinds: []string{"library", "collection", "view"}},
+		{Style: "plate", Label: "Plate", Shape: "poster", Aspect: "2/3", Image: []string{"poster", "backdrop"}, Shows: []string{"title", "subtitle", "badges"}, TitleLines: 2, SubtitleLines: 1,
+			Description: "Upright art with the title over it on a scrim along its foot: the Rail look's card.", Kinds: []string{"movie", "show", "disc"}},
+		{Style: "block", Label: "Block", Shape: "landscape", Aspect: "16/9", Image: []string{"backdrop", "poster"}, Shows: []string{"title", "subtitle"}, TitleLines: 2, SubtitleLines: 1,
+			Description: "A flat block of colour with the title in it, no picture unless there is room: teletext's cell."},
+		{Style: "logo", Label: "Logo tile", Shape: "landscape", Aspect: "16/9", Image: []string{"logo"}, Shows: []string{"number", "title"}, TitleLines: 1, SubtitleLines: 0,
+			Description: "A channel's logo, contain-fitted on a plain tile, with its number: a satellite box's channel list.", Kinds: []string{"channel"}},
 		{Style: "chip", Label: "Chip", Shape: "chip", Aspect: "", Shows: []string{"title"}, TitleLines: 1, SubtitleLines: 0,
 			Description: "A pill with a name alone: a genre.", Kinds: []string{"genre"}},
 	}
@@ -602,6 +718,9 @@ func buildSources() []SourceSpec {
 				pEnum("who", "Whose", "Everyone's is answered for administrators only.", "me", "me|The profile's own", "everyone|Everyone on the server"),
 				pEnum("period", "Over", "", "month", "week|The last 7 days", "month|The last 30 days", "year|The last 365 days", "all|All time"), paramLibrary, paramLimit},
 			Yields: []string{"movie", "episode", "video", "disc", "show", "track", "book", "game", "library"}, Example: example(`{"type":"statistics","stat":"shows","period":"year","limit":10}`)},
+		{Type: "serverStatus", Label: "Server status", Icon: "plug", Category: "structure", Since: 6, CardStyle: "tile", Title: "Server",
+			Description: "A few figures about the server: libraries, what is playing now, how long it has been up. Answered for administrators only; empty for anyone else.",
+			Params:      []PropSpec{paramLimit}, Yields: []string{"status"}, Example: example(`{"type":"serverStatus"}`)},
 		{Type: "savedView", Label: "A saved view", Icon: "filter", Category: "personal", Since: 2, CardStyle: "poster", Paged: true, Title: "{each}",
 			Description: "What one of the profile's saved library views finds now. With a row repeated over pinned views, $each is each view.",
 			Params:      []PropSpec{req(pOf(PropRef, "view", "View", "The saved view's ID, or $each.")), paramLimit}, Yields: []string{"movie", "show"},
@@ -689,6 +808,18 @@ func buildSources() []SourceSpec {
 			Description: "Games the profile has played, most recent first.",
 			Params:      []PropSpec{paramLibrary, paramLimit}, Yields: []string{"game"}, Example: example(`{"type":"continuePlaying"}`)},
 
+		{Type: "credits", Label: "Cast and crew", Icon: "users", Category: "context", Since: 5, CardStyle: "person", PageKinds: []string{"detail"}, Title: "Cast and crew",
+			Description: "A title's people: the cast in billing order, the guest stars (an episode's, or a season's with the most episodes first), then the crew by department, from the best source that names each part. Each card's subtitle is the part played or the job; its group is the part (cast, guests or a department).",
+			Params: []PropSpec{pOf(PropRef, "item", "Title", "$item on a film's or an episode's page."), pOf(PropRef, "show", "Show", "$show on a show's page (when there is no item)."),
+				pOf(PropRef, "season", "Season", "$season: a season's guest stars on a show's page opened with ?season=."),
+				pEnum("part", "Part", "", "all", append([]string{"all|Everyone"}, creditGroupSpecs...)...), paramLimit,
+				pStr("programme", "Programme", "A WittyTV programme: a channel's key and a moment in it, tun-12@1767225600. Its title's credits in the library when the profile may see it, else the guide's own.", 40)},
+			Yields: []string{"person"}, Example: example(`{"type":"credits","item":"$item"}`)},
+		{Type: "filmography", Label: "A person's titles", Icon: "user", Category: "context", Since: 5, CardStyle: "poster", PageKinds: []string{"detail"}, Paged: true, Title: "{each}",
+			Description: "The films and shows in this library a person is in or worked on, newest first, that the profile may see; one part of them (their acting, or one department's work), or all. Each card's subtitle is the year and the part or job; a show's says how many episodes.",
+			Params: []PropSpec{req(pOf(PropRef, "person", "Person", "$person on a person's page.")),
+				pStr("part", "Part", "all (the default), acting, or a department: directing, writing, production, camera, lighting, editing, sound, art, costume, effects, crew; $each in a row repeated over personParts.", 40), paramLimit},
+			Yields: []string{"movie", "show"}, Example: example(`{"type":"filmography","person":"$person","part":"$each"}`)},
 		{Type: "episodes", Label: "Episodes", Icon: "show", Category: "context", Since: 2, CardStyle: "episode", PageKinds: []string{"detail"}, Paged: true, Title: "Episodes",
 			Description: "One season of a show. Left to itself it picks the season of the next episode to watch.",
 			Params:      []PropSpec{req(pOf(PropRef, "show", "Show", "$show on a show's or an episode's page.")), pOf(PropRef, "season", "Season", "A season number, or $season; empty picks one."), paramLimit},
@@ -702,10 +833,10 @@ func buildSources() []SourceSpec {
 			Params:      []PropSpec{req(pOf(PropRef, "item", "Title", "$item on a film's page, $show on a show's.")), paramLimit}, Yields: []string{"movie", "show"},
 			Example: example(`{"type":"similar","item":"$item","limit":12}`)},
 		{Type: "search", Label: "Search results", Icon: "search", Category: "context", Since: 2, CardStyle: "poster", PageKinds: []string{"search"}, Title: "{each}",
-			Description: "What a search finds in one library, or among the channels. Nothing under two characters.",
+			Description: "What a search finds in one library, among the channels, or among the people credited on titles the profile may see. Nothing under two characters.",
 			Params: []PropSpec{req(pOf(PropRef, "query", "Search", "$query on the search page.")), paramLibrary,
-				pEnum("in", "Look in", "", "library", "library|A library", "channels|TV channels"), paramLimit},
-			Yields: []string{"movie", "show", "album", "book", "game", "channel"}, Example: example(`{"type":"search","query":"$query","library":"$each"}`)},
+				pEnum("in", "Look in", "", "library", "library|A library", "channels|TV channels", "people|People in the cast and crew"), paramLimit},
+			Yields: []string{"movie", "show", "album", "book", "game", "channel", "person"}, Example: example(`{"type":"search","query":"$query","library":"$each"}`)},
 	}
 }
 
@@ -743,9 +874,9 @@ func buildPageKinds() []PageKindSpec {
 			Params: []string{"library", "tab", "sort", "desc", "genre", "decade", "year", "content", "resolution", "watched", "studio", "network", "tag", "service",
 				"series", "kind", "disc", "minRating", "audio", "subtitle", "format", "edition", "search", "seed"},
 			Variables: []string{"$library"}, Match: []string{"library", "libraryKind"}},
-		{Kind: "detail", Label: "A title", Route: "/item/{item}", Description: "The page of one film, show, episode, album, artist, book, game or collection.",
-			Params:    []string{"item", "show", "season", "collection", "library", "artist", "album", "tab"},
-			Variables: []string{"$item", "$show", "$season", "$collection", "$library", "$artist", "$album"}, Match: []string{"mediaKind", "library", "libraryKind"}},
+		{Kind: "detail", Label: "A title", Route: "/item/{item}", Description: "The page of one film, show, episode, album, artist, book, game or collection, or of a person in the cast or crew.",
+			Params:    []string{"item", "show", "season", "collection", "library", "artist", "album", "person", "tab"},
+			Variables: []string{"$item", "$show", "$season", "$collection", "$library", "$artist", "$album", "$person"}, Match: []string{"mediaKind", "library", "libraryKind"}},
 		{Kind: "search", Label: "Search", Route: "/search", Description: "Search across everything.", Params: []string{"q", "tab"}, Variables: []string{"$query"}},
 		{Kind: "livetv", Label: "Live TV", Route: "/tv", Description: "Channels and the guide.", Params: []string{"tab"}},
 		{Kind: "music", Label: "Music", Route: "/music", Description: "Every music library together.", Params: []string{"tab"}},
@@ -767,6 +898,7 @@ func buildRoutes() []RouteSpec {
 		{Pattern: "/album/{library}", Page: "detail", Params: map[string]string{"library": "{library}", "artist": "?artist", "album": "?album"}},
 		{Pattern: "/artist/{library}", Page: "detail", Params: map[string]string{"library": "{library}", "artist": "?name"}},
 		{Pattern: "/collections/{collection}", Page: "detail", Params: map[string]string{"collection": "{collection}"}},
+		{Pattern: "/person/{person}", Page: "detail", Params: map[string]string{"person": "{person}"}},
 		{Pattern: "/collections", Page: "collections"},
 		{Pattern: "/search", Page: "search", Params: map[string]string{"q": "?q"}},
 		{Pattern: "/tv", Page: "livetv"},
@@ -801,23 +933,39 @@ func buildCatalogue() *Catalogue {
 			{Op: "watched.clear", Label: "Mark unwatched", Description: "Forgets the profile's progress in the title; for a show, in every episode.", Method: "DELETE", Path: "/api/v1/items/{item}/progress"},
 			{Op: "selectTab", Label: "Choose a tab", Description: "Asks for the page again with tab=<params.tab>, or shows the tab's content when the client already has it.", Method: "GET", Path: ""},
 			{Op: "control.open", Label: "Open a control", Description: "Client-handled, from a Dock: params.control is sort, filter, view or jump and params.target the Grid. sort and filter open the page's FilterBar choices for the target; view switches it between its grid and a list and remembers it for the profile on the device; jump opens a letter picker (A to Z and #) and brings the grid to the first title starting with the letter by asking its more.url until one has arrived, at most 20 pages.", Method: "GET", Path: ""},
+			{Op: "wittyplay.room.create", Label: "Open a room", Description: "WittyPlay Online: opens the game being played (item: its session) to the friends who may see it, so they join with no code. Answers the host's code.", Method: "POST", Path: "/api/play/{item}/room", Body: `{"open":true}`},
+			{Op: "wittyplay.room.join", Label: "Join a room", Description: "WittyPlay Online: takes a seat in an open room (item: its session) or, with params.code, the room that code belongs to (no item).", Method: "POST", Path: "/api/play/join", Body: `{"room":"{item}","code":"{code}"}`,
+				Params: []CommandParam{{Name: "code", Type: "string", Label: "Join code"}}},
+			{Op: "wittyplay.room.invite", Label: "Invite someone", Description: "WittyPlay Online: a join code for the game being played (item: its session), good for a short while, which a phone's QR join link carries. Answers {code, expiresAt}.", Method: "POST", Path: "/api/play/{item}/invite"},
+			{Op: "wittyplay.state.save", Label: "Save state", Description: "WittyPlay: saves the game being played (item: its session) into params.slot.", Method: "POST", Path: "/api/play/{item}/action", Body: `{"type":"save","slot":"{slot}"}`,
+				Params: []CommandParam{{Name: "slot", Type: "int", Label: "Save slot", Required: true}}},
+			{Op: "wittyplay.state.load", Label: "Load state", Description: "WittyPlay: loads params.slot into the game being played (item: its session).", Method: "POST", Path: "/api/play/{item}/action", Body: `{"type":"load","slot":"{slot}"}`,
+				Params: []CommandParam{{Name: "slot", Type: "int", Label: "Save slot", Required: true}}},
+			{Op: "wittyplay.state.delete", Label: "Delete a save state", Description: "WittyPlay: deletes the profile's save in params.slot of the game (item: the game's ID, not a session).", Method: "DELETE", Path: "/api/games/{item}/saves/{slot}",
+				Params: []CommandParam{{Name: "slot", Type: "int", Label: "Save slot", Required: true}}},
+			{Op: "wittyplay.controller.assign", Label: "Move a player", Description: "WittyPlay Online: the host puts the profile params.user in seat params.seat of the game being played (item: its session); a held seat is swapped.", Method: "PUT", Path: "/api/play/{item}/seats/{user}", Body: `{"seat":"{seat}"}`,
+				Params: []CommandParam{{Name: "user", Type: "string", Label: "Profile", Required: true}, {Name: "seat", Type: "int", Label: "Seat", Required: true}}},
+			{Op: "rewind.open", Label: "Rewind", Description: "Client-handled, in the game player: opens the player's rewind panel. No request.", Method: "GET", Path: ""},
+			{Op: "controller.remap", Label: "Remap controls", Description: "Client-handled, in the game player: opens the player's own controller-mapping panel. No request.", Method: "GET", Path: ""},
 			{Op: "refresh", Label: "Refresh", Description: "Asks for the page again.", Method: "GET", Path: ""},
 		},
 		NativeScreens: append([]NativeScreenSpec(nil), nativeScreenSpecs...),
-		NativeViews:   opts("guide|TV guide grid", "photoTimeline|Photo timeline", "photoMap|Photo map", "coverFlow|Album cover flow"),
-		Icons:         append([]string(nil), Icons...),
+		TVThemes:      dataFile("tvthemes.json"), Remote: dataFile("remote.json"), Music: dataFile("music.json"),
+		NativeViews: opts("guide|TV guide grid", "photoTimeline|Photo timeline", "photoMap|Photo map", "coverFlow|Album cover flow"),
+		Icons:       append([]string(nil), Icons...),
 		Placeholders: opts("{user}|The profile's name", "{server}|The server's name", "{greeting}|Good morning, afternoon or evening", "{library}|The page's library",
 			"{title}|The page's title, or a source's first item", "{query}|What was searched for", "{each}|What a repeated section is repeated over", "{count}|How many items a source gave",
 			"{genre}|The source's genre", "{studio}|The source's studio", "{tag}|The source's tag"),
 		Repeats: opts("libraries|Each library", "pinnedViews|Each saved view pinned to Home", "collections|Each collection",
-			"bookSeries|Each series of the page's books library", "bookAuthors|Each author of the page's books library"),
+			"bookSeries|Each series of the page's books library", "bookAuthors|Each author of the page's books library",
+			"personParts|Each part of a person's work (acting, each department) on their page"),
 		FormFactors: FormFactors, Platforms: Platforms, ProfileKinds: ProfileKinds, LibraryKinds: LibraryKinds, MediaKinds: MediaKinds,
 		PersonalKinds: opts("reorder|Move sections", "hide|Hide sections", "pin|Pin sections to the top", "density|Choose a density", "cardSize|Choose card sizes", "defaultTab|Choose the opening tab"),
 		Placements:    opts("primary|In the bar", "more|Under More", "end|At the far end", "hidden|Not shown"),
 		Spacing:       SpacingSteps,
 		Limits: map[string]int{"maxPageBytes": MaxPageBytes, "maxSections": MaxSections, "maxDepth": MaxDepth, "maxChildren": MaxChildren, "maxVariants": MaxVariants,
 			"maxNavItems": MaxNavItems, "maxPages": MaxPages, "maxIdLength": MaxIDLength, "maxPersonalBytes": MaxPersonalBytes, "maxSourceLimit": 500},
-		Profiles: map[string]*Layout{}, Layouts: Layouts, NavStyles: NavStyles,
+		Profiles: map[string]*Layout{}, Experiences: Experiences, NavStyles: NavStyles,
 	}
 	for _, ff := range FormFactors {
 		c.Profiles[ff] = ProfileFor(ff, "")
@@ -858,4 +1006,17 @@ func menuScreens() []string {
 		}
 	}
 	return out
+}
+
+//go:embed data/*.json
+var dataFiles embed.FS
+
+// dataFile is one of the catalogue's data tables (data/*.json), validated as JSON when the
+// catalogue is built.
+func dataFile(name string) json.RawMessage {
+	b, err := dataFiles.ReadFile("data/" + name)
+	if err != nil || !json.Valid(b) {
+		panic("sdui: data/" + name + " is missing or not JSON")
+	}
+	return json.RawMessage(bytes.TrimSpace(b))
 }

@@ -10,7 +10,9 @@ import (
 
 // CatalogRevision counts changes to the catalogue within one SchemaVersion. Every renderer
 // draws every component of the current revision: there is no negotiation and no fallback.
-const CatalogRevision = 4
+// 5 added cast and crew: the Credits component, the credits and filmography sources, people
+// in search, the person page.
+const CatalogRevision = 6
 
 // Property types, as an editor needs them to build a form.
 const (
@@ -201,6 +203,21 @@ type CommandSpec struct {
 	Method string `json:"method"`
 	Path   string `json:"path"`
 	Body   string `json:"body,omitempty"`
+	// Params are the values besides {item} the command needs, from the action's params, by
+	// name. A client puts each one in place of {name} the way {item} goes: URL-escaped in
+	// Path; in Body inside a JSON string, escaped as one, except that for an int parameter the
+	// string and its quotes are replaced by the number. A parameter that wasn't given is an
+	// empty string (an int one is required, so it is always given). Body stays JSON whatever
+	// the values.
+	Params []CommandParam `json:"params,omitempty"`
+}
+
+// CommandParam is one value a command takes besides the action's item.
+type CommandParam struct {
+	Name     string `json:"name"`
+	Type     string `json:"type"` // string or int
+	Label    string `json:"label"`
+	Required bool   `json:"required,omitempty"`
 }
 
 // NativeScreenSpec describes a screen every app draws itself.
@@ -229,26 +246,32 @@ type Catalogue struct {
 	Commands      []CommandSpec      `json:"commands"`
 	NativeScreens []NativeScreenSpec `json:"nativeScreens"`
 	NativeViews   []EnumOption       `json:"nativeViews"`
-	Icons         []string           `json:"icons"`
-	Placeholders  []EnumOption       `json:"placeholders"`
-	Repeats       []EnumOption       `json:"repeats"`
-	FormFactors   []string           `json:"formFactors"`
-	Platforms     []string           `json:"platforms"`
-	ProfileKinds  []string           `json:"profileKinds"`
-	LibraryKinds  []string           `json:"libraryKinds"`
-	MediaKinds    []string           `json:"mediaKinds"`
-	PersonalKinds []EnumOption       `json:"personalKinds"`
-	Placements    []EnumOption       `json:"placements"`
-	Spacing       []string           `json:"spacing"`
-	Limits        map[string]int     `json:"limits"`
+	// TVThemes are the WittyTV looks as data, Remote the WittyRemote's keys and which stay
+	// dimmed for each kind of disc, and Music the mini player, visualizer and karaoke controls
+	// (data/*.json): every client draws them from these tables.
+	TVThemes      json.RawMessage `json:"tvThemes"`
+	Remote        json.RawMessage `json:"remote"`
+	Music         json.RawMessage `json:"music"`
+	Icons         []string        `json:"icons"`
+	Placeholders  []EnumOption    `json:"placeholders"`
+	Repeats       []EnumOption    `json:"repeats"`
+	FormFactors   []string        `json:"formFactors"`
+	Platforms     []string        `json:"platforms"`
+	ProfileKinds  []string        `json:"profileKinds"`
+	LibraryKinds  []string        `json:"libraryKinds"`
+	MediaKinds    []string        `json:"mediaKinds"`
+	PersonalKinds []EnumOption    `json:"personalKinds"`
+	Placements    []EnumOption    `json:"placements"`
+	Spacing       []string        `json:"spacing"`
+	Limits        map[string]int  `json:"limits"`
 	// Profiles are the device profiles, so an editor can preview a page's
 	// budgets and a renderer can lay out a lazily loaded page of cards.
 	Profiles map[string]*Layout `json:"profiles"`
 	// Theme is the vocabulary of the components' tokens (tokens.go).
 	Theme *ThemeRoles `json:"theme,omitempty"`
-	// Layouts are the layout options: the menu's style on each form factor and what each
+	// Experiences are the looks: the menu's style on each form factor and what each
 	// changes about pages.
-	Layouts []LayoutSpec `json:"layouts"`
+	Experiences []Experience `json:"experiences"`
 	// NavStyles are the ways an app draws its menu.
 	NavStyles []string `json:"navStyles"`
 }

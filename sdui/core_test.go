@@ -48,14 +48,29 @@ func TestCoreIsTheServersCopy(t *testing.T) {
 			want[filepath.Base(f)] = b
 		}
 	}
+	for _, d := range []string{"data", "experiences"} {
+		files, _ := filepath.Glob(filepath.Join(src, d, "*.json"))
+		for _, f := range files {
+			b, _ := os.ReadFile(f)
+			want[d+"/"+filepath.Base(f)] = b
+		}
+	}
 	have, _ := filepath.Glob(filepath.Join("internal", "core", "*.go"))
+	for _, d := range []string{"data", "experiences"} {
+		more, _ := filepath.Glob(filepath.Join("internal", "core", d, "*.json"))
+		have = append(have, more...)
+	}
 	if len(have) != len(want) {
 		t.Errorf("internal/core has %d files and the server's pkg/sdui %d: run kit/sync-sdui-core.sh", len(have), len(want))
 	}
 	for _, f := range have {
 		b, _ := os.ReadFile(f)
-		if w, ok := want[filepath.Base(f)]; !ok || !bytes.Equal(b, w) {
-			t.Errorf("internal/core/%s differs from the server's: run kit/sync-sdui-core.sh", filepath.Base(f))
+		key := filepath.Base(f)
+		if d := filepath.Base(filepath.Dir(f)); d == "data" || d == "experiences" {
+			key = d + "/" + key
+		}
+		if w, ok := want[key]; !ok || !bytes.Equal(b, w) {
+			t.Errorf("internal/core/%s differs from the server's: run kit/sync-sdui-core.sh", key)
 		}
 	}
 }

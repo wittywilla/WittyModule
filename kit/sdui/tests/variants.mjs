@@ -48,7 +48,7 @@ export const variants = [
   { rule: 'placeholder names a property', path: '/components/0/section', change: (ui) => { ui.components[0].section.props.subtitle = 'In {{colour}}' } },
   { rule: 'component made of catalogue components', path: '/components/0/section/component', change: (ui) => { ui.components.push({ type: 'wittyboardgames.Twice', label: 'Twice', section: { id: 'x', component: 'wittyboardgames.GameNight' } }); ui.components.reverse() } },
   { rule: 'component template is a valid section', path: '/components/0/section/0/props/cardSize', change: (ui) => { ui.components[0].section.props.cardSize = 'xl' } },
-  { rule: 'component template uses catalogue components', path: '/components/0/section/0/component', change: (ui) => { ui.components[0].section.component = 'Carousel' } },
+  { rule: 'component template uses catalogue components', path: '/components/0/section/0/component', change: (ui) => { ui.components[0].section.component = 'Roundabout' } },
   // Views.
   { rule: 'view is <module>.<camelName>', path: '/views/0/id', change: (ui) => { ui.views[0].id = 'scoreboard'; ui.pages[0].sections[2].props.view = 'scoreboard' } },
   { rule: 'view platform', path: '/views/0/platforms/0', change: (ui) => { ui.views[0].platforms = ['webos'] } },
@@ -64,7 +64,7 @@ export const variants = [
   { rule: 'section IDs are unique', path: '/pages/0/sections/1/id', change: (ui) => { ui.pages[0].sections[1].id = 'night' } },
   { rule: 'another module\'s component', path: '/pages/0/sections/0/component', change: (ui) => { ui.pages[0].sections[0].component = 'wittyplay.ConsoleShelf' } },
   { rule: 'another module\'s source', path: '/pages/0/sections/1/source/type', change: (ui) => { ui.pages[0].sections[1].source.type = 'wittyplay.recent' } },
-  { rule: 'catalogue component', path: '/pages/0/sections/1/component', change: (ui) => { ui.pages[0].sections[1].component = 'Carousel' } },
+  { rule: 'catalogue component', path: '/pages/0/sections/1/component', change: (ui) => { ui.pages[0].sections[1].component = 'Roundabout' } },
   { rule: 'catalogue source', path: '/pages/0/sections/1/source/type', change: (ui) => { ui.pages[0].sections[1].source = { type: 'recentlyAddedd' } } },
   { rule: 'component props', path: '/pages/0/sections/1/props/cardStyle', change: (ui) => { ui.pages[0].sections[1].props.cardStyle = 'giant' } },
   { rule: 'component has the prop', path: '/pages/0/sections/1/props/colour', change: (ui) => { ui.pages[0].sections[1].props.colour = 'red' } },

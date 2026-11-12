@@ -19,4 +19,10 @@ for f in "$src"/*.go; do
   case "$f" in *_test.go) continue;; esac
   cp "$f" "$dst/"
 done
+# the data tables and experiences the library embeds
+for d in data experiences; do
+  rm -rf "$dst/$d"
+  mkdir -p "$dst/$d"
+  cp "$src/$d"/*.json "$dst/$d/"
+done
 echo "copied $(ls "$dst"/*.go | wc -l | tr -d ' ') files from $src"
