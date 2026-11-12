@@ -28,6 +28,7 @@ func main() {
 }
 ```
 
+- **The module's SDUI (module API 4):** `sdui/` writes and checks the `sdui.json` every module carries: what it adds to every app, as data the server checks and every app draws. `kit/sdui/` is the same for web bundles in TypeScript. WittyMediaServer's docs/SDUI-MODULES.md describes it.
 - **The catalogue:** the code that reads and checks a store's signed list of modules.
 - **Withdrawing a version:** the signed list that takes a version back.
 - **The `wittymodule` tool:**
