@@ -5,6 +5,7 @@ What changed in WittyModule, newest first. What changed before it had a reposito
 
 ## Unreleased
 
+- `sdui.Check` (and so `wittymodule check` and the golden test) is the server's own validator: `sdui/internal/core` is a copy of WittyMediaServer's `pkg/sdui`, kept current with `kit/sync-sdui-core.sh` and compared with a server checkout beside this one by the tests. A module that passes is no longer refused at install for its SDUI (a settings label over 80 characters once passed). `wittymodule check` also refuses data sources on a module that isn't a helper.
 - **A service module answers the server's SDUI calls:** `service.Config.UI` (`sdui.Answers`) answers `sdui.items`, `sdui.image` and `settings.changed` on the helper protocol, which a service otherwise refused as unknown methods.
 
 - Module API 4: a module carries its own SDUI, `sdui.json` beside its manifest: its pages, sections, components, data sources, views, menu entries, settings and theme scope (WittyMediaServer docs/SDUI-MODULES.md). `wittymodule check` requires it from API 4 and checks it; `pack` puts it in every archive. The kit is `sdui/` for Go (write, check, golden test, answer the server's `sdui.items`, `sdui.image` and `settings.changed`) and `kit/sdui/` for web bundles. Servers that take API 4 still take API 3.

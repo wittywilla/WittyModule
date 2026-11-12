@@ -204,8 +204,12 @@ func checkOne(dir, server string) error {
 	}
 	// Its SDUI: required from module API 4, checked whenever it is there.
 	if _, err := os.Stat(filepath.Join(dir, wittymodule.SDUIFile)); err == nil {
-		if _, err := sdui.ReadFile(filepath.Join(dir, wittymodule.SDUIFile), m.ID); err != nil {
+		ui, err := sdui.ReadFile(filepath.Join(dir, wittymodule.SDUIFile), m.ID)
+		if err != nil {
 			return fmt.Errorf("%s: %w", wittymodule.SDUIFile, err)
+		}
+		if len(ui.Sources) > 0 && m.Delivery != wittymodule.DeliveryHelper {
+			return fmt.Errorf("%s has data sources, and only a helper can answer them; %s is delivered as %q", wittymodule.SDUIFile, m.ID, m.Delivery)
 		}
 	} else if m.NeedsSDUI() {
 		return fmt.Errorf("it is built for module API %d, where a module carries its own SDUI, and it has no %s (see WittyMediaServer docs/SDUI-MODULES.md)", m.API, wittymodule.SDUIFile)

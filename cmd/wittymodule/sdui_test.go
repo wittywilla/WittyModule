@@ -66,3 +66,10 @@ func TestPackWebCarriesSDUI(t *testing.T) {
 		t.Errorf("sdui.json isn't in the release: %s", b)
 	}
 }
+
+func TestCheckRefusesSourcesOnAWebBundle(t *testing.T) {
+	ui := strings.Replace(smallUI, `"theme":{"scope":"wittyx"}`, `"theme":{"scope":"wittyx"},"sources":[{"type":"wittyx.picks","label":"Picks","yields":["game"],"cardStyle":"square","paged":false,"since":2}]`, 1)
+	if err := checkOne(webModule(t, 4, ui), ""); err == nil || !strings.Contains(err.Error(), "only a helper") {
+		t.Errorf("a web bundle with sources: %v", err)
+	}
+}
