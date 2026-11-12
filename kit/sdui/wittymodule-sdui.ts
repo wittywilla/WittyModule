@@ -75,6 +75,8 @@ export const LIBRARY_KINDS = ['movies', 'discs', 'shows', 'anime', 'videos', 'sh
 export const MEDIA_KINDS = ['movie', 'show', 'episode', 'video', 'disc', 'album', 'artist', 'track', 'book', 'audiobook', 'podcast', 'game', 'photo', 'collection', 'person'] as const
 export const PLACEMENTS = ['primary', 'more', 'end', 'hidden'] as const
 export const REPEATS = ['libraries', 'pinnedViews', 'collections', 'bookSeries', 'bookAuthors', 'personParts'] as const
+/** The catalogue's commands: what a `command` action's `op` may be. */
+export const COMMANDS = ['watchLater.add', 'watchLater.remove', 'watched.set', 'watched.clear', 'selectTab', 'control.open', 'wittyplay.room.create', 'wittyplay.room.join', 'wittyplay.room.invite', 'wittyplay.state.save', 'wittyplay.state.load', 'wittyplay.state.delete', 'wittyplay.controller.assign', 'rewind.open', 'controller.remap', 'refresh'] as const
 export const PERSONAL_KINDS = ['reorder', 'hide', 'pin', 'density', 'cardSize', 'defaultTab'] as const
 /** The views every app may know for a NativeView; a module adds its own. */
 export const NATIVE_VIEWS = ['guide', 'photoTimeline', 'photoMap', 'coverFlow'] as const
@@ -145,6 +147,7 @@ export type MediaKind = (typeof MEDIA_KINDS)[number]
 export type ItemKind = (typeof ITEM_KINDS)[number]
 export type Placement = (typeof PLACEMENTS)[number]
 export type RepeatOver = (typeof REPEATS)[number]
+export type CatalogCommandOp = (typeof COMMANDS)[number]
 export type PersonalKind = (typeof PERSONAL_KINDS)[number]
 export type Weekday = (typeof WEEKDAYS)[number]
 export type CanFeature = (typeof CAN_FEATURES)[number]
@@ -455,17 +458,112 @@ type SeeAll = 'auto' | 'always' | 'never'
 type Empty = 'hide' | 'message'
 type CardSize = 's' | 'm' | 'l'
 
+type HeadingStyle = 'plain' | 'band' | 'underline'
+
 export interface ShelfProps {
   title?: string
   subtitle?: string
+  headingStyle?: HeadingStyle
   cardStyle?: 'auto' | CardStyle
   cardSize?: CardSize
   showTitles?: boolean
   seeAll?: SeeAll
+  /** Draw the last card as See all (auto: when there is more to see). */
+  seeAllCard?: SeeAll
   numbered?: boolean
+  /** Let the next card show at the edge, so a row is known to scroll. */
+  peek?: boolean
   maxItems?: number
   empty?: Empty
   emptyText?: string
+}
+
+/** A row that scrolls one card at a time, with no See all (catalogue revision 6). */
+export interface CarouselProps {
+  title?: string
+  headingStyle?: HeadingStyle
+  cardStyle?: 'auto' | CardStyle
+  cardSize?: CardSize
+  showTitles?: boolean
+  maxItems?: number
+  empty?: Empty
+  emptyText?: string
+}
+
+/** A ranked row: big numbers beside the cards (revision 6). `index` counts 1, 2, 3 in order; `auto` takes the source's own rank. */
+export interface NumberedRowProps {
+  title?: string
+  headingStyle?: HeadingStyle
+  numbers?: 'auto' | 'index'
+  maxItems?: number
+  empty?: Empty
+  emptyText?: string
+}
+
+/** A CrossBar's children are Tab sections, one per category; `default` is the ID of the one it opens on (revision 6). */
+export interface CrossBarProps {
+  default?: string
+}
+
+export interface WidgetGridProps {
+  /** Columns the grid is laid out in, 1 to 12. */
+  columns?: number
+}
+
+/** One tile of a WidgetGrid (revision 6). x and y place it (columns and rows counted from 0); w and h size it. */
+export interface WidgetProps {
+  kind?: 'continue' | 'liveNow' | 'stats' | 'serverStatus' | 'clock' | 'recordings'
+  title?: string
+  x?: number
+  y?: number
+  w?: number
+  h?: number
+}
+
+export interface CreditsProps {
+  title?: string
+  parts?: Array<'cast' | 'guests' | 'crew'>
+  castLimit?: number
+  crewLimit?: number
+  departments?: Array<'directing' | 'writing' | 'production' | 'camera' | 'lighting' | 'editing' | 'sound' | 'art' | 'costume' | 'effects' | 'crew'>
+  cardSize?: CardSize
+}
+
+/**
+ * What a source answers for a person (`yields: ['person']`, cardStyle `person`): a friend, a
+ * player in a room, someone in a cast. The card shows the photo (initials when there is none),
+ * `title`, `subtitle` (a role, or where they are) and `badges` (presence, a seat). It opens
+ * something only when `route` is set; without one it is not a button.
+ */
+export interface PersonItem {
+  id: string
+  kind: 'person'
+  title: string
+  subtitle?: string
+  badges?: string[]
+  images?: { square?: string; poster?: string }
+  icon?: Icon
+  route?: string
+  scope?: string
+}
+
+/** A value a catalogue command takes besides the action's item. */
+export interface CommandParam {
+  name: string
+  type: 'string' | 'int'
+  label: string
+  required?: boolean
+}
+
+/**
+ * A `command` action: `op` is one of COMMANDS, `item` fills {item} in the command's request,
+ * and `params` give its {name} values (a number for an `int` param). See docs/SDUI.md, Command.
+ */
+export interface CommandAction {
+  type: 'command'
+  op: CatalogCommandOp
+  item?: string
+  params?: Record<string, string | number>
 }
 
 export interface GridProps {
@@ -545,6 +643,36 @@ export function grid(id: string, source: Source, props?: GridProps, extras?: Sec
 /** A large rotating spotlight of a few titles from a source. */
 export function hero(id: string, source: Source, props?: HeroProps, extras?: SectionExtras): Section {
   return made(id, 'Hero', props, source, extras)
+}
+
+/** A row that scrolls a card at a time. */
+export function carousel(id: string, source: Source, props?: CarouselProps, extras?: SectionExtras): Section {
+  return made(id, 'Carousel', props, source, extras)
+}
+
+/** A ranked row with big numbers. */
+export function numberedRow(id: string, source: Source, props?: NumberedRowProps, extras?: SectionExtras): Section {
+  return made(id, 'NumberedRow', props, source, extras)
+}
+
+/** A title's cast and crew, from a `credits` source. */
+export function credits(id: string, source: Source, props?: CreditsProps, extras?: SectionExtras): Section {
+  return made(id, 'Credits', props, source, extras)
+}
+
+/** A grid of widgets: put `widget`s in it. */
+export function widgetGrid(id: string, widgets: Section[], props?: WidgetGridProps, extras?: SectionExtras): Section {
+  return made(id, 'WidgetGrid', props, undefined, extras, widgets)
+}
+
+/** One tile of a widget grid. */
+export function widget(id: string, props?: WidgetProps, extras?: SectionExtras): Section {
+  return made(id, 'Widget', props, undefined, extras)
+}
+
+/** A cross bar: `Tab` sections, one per category, in a row of tabs with the tab's rows under it. */
+export function crossBar(id: string, tabs: Section[], props?: CrossBarProps, extras?: SectionExtras): Section {
+  return made(id, 'CrossBar', props, undefined, extras, tabs)
 }
 
 /** A line or paragraph of text. */
@@ -1010,9 +1138,9 @@ class Checker {
         continue
       }
       if (s.component === 'Grid') grids.set(s.id, s)
-      if ((s.component === 'Tab') !== (parent === 'Tabs')) {
-        if (s.component === 'Tab') this.err(sp + '/component', 'Put the Tab inside a Tabs section.', 'a Tab belongs inside Tabs')
-        else this.err(sp + '/component', 'Wrap it in a Tab.', `Tabs holds only Tab sections, not ${s.component}`)
+      if ((s.component === 'Tab') !== (parent === 'Tabs' || parent === 'CrossBar')) {
+        if (s.component === 'Tab') this.err(sp + '/component', 'Put the Tab inside a Tabs section.', 'a Tab belongs inside Tabs or a CrossBar')
+        else this.err(sp + '/component', 'Wrap it in a Tab.', `Tabs and a CrossBar hold only Tab sections, not ${s.component}`)
       }
       if (parent === 'List' && s.component !== 'ListItem') this.err(sp + '/component', 'Use a ListItem.', `a List holds only ListItem sections, not ${s.component}`)
       if (parent === 'Stack:row' && !['Button', 'Text', 'Image', 'Spacer', 'Divider', 'SearchBox'].includes(s.component)) this.err(sp + '/component', 'Put it in a Stack that goes down, or directly on the page.', `a Stack that goes across holds only Button, Text, Image, Spacer, Divider and SearchBox, not ${s.component}`)
@@ -1034,8 +1162,8 @@ class Checker {
       }
       if (children.length > PAGE_LIMITS.maxChildren) this.err(sp + '/children', 'Split it.', `a section holds at most ${PAGE_LIMITS.maxChildren} others`)
       if (s.component === 'Split' && children.length !== 2) this.err(sp + '/children', 'Give it exactly two sections; use a Stack inside one for more.', `Two columns needs exactly two sections, not ${children.length}`)
-      if (s.component === 'Tabs' && children.length === 0) this.err(sp + '/children', 'Add a Tab.', 'Tabs needs at least one Tab')
-      if (s.component === 'Tabs') {
+      if ((s.component === 'Tabs' || s.component === 'CrossBar') && children.length === 0) this.err(sp + '/children', 'Add a Tab.', 'Tabs needs at least one Tab')
+      if (s.component === 'Tabs' || s.component === 'CrossBar') {
         const d = propStr(s.props, 'default', '')
         if (d !== '' && !children.some((c: any) => c?.id === d)) this.err(sp + '/props/default', 'Use the ID of one of its tabs.', `${q(d)} is not one of this section's tabs`)
       }

@@ -29,6 +29,7 @@ test('the type lists are the catalogue\'s', () => {
   assert.deepEqual([...kit.REPEATS], vals(catalog.repeats))
   assert.deepEqual([...kit.PERSONAL_KINDS], vals(catalog.personalKinds))
   assert.deepEqual([...kit.NATIVE_VIEWS], vals(catalog.nativeViews))
+  assert.deepEqual([...kit.COMMANDS], catalog.commands.map((c) => c.op))
   assert.deepEqual([...kit.WEEKDAYS], cond('weekday'))
   assert.deepEqual([...kit.CAN_FEATURES], cond('can'))
   assert.deepEqual([...kit.FLAGS], cond('flag'))

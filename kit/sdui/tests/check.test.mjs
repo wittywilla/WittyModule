@@ -82,6 +82,27 @@ test('the constructors make sections the checker accepts', () => {
   assert.deepEqual(kit.nativeView('n', 'guide'), { id: 'n', component: 'NativeView', props: { view: 'guide' } })
 })
 
+test('the revision 6 constructors make sections the checker accepts', () => {
+  const ui = kit.moduleUI('wittydemo', {
+    sources: [{ type: 'wittydemo.people', label: 'People', description: 'Friends.', icon: 'users', yields: ['person'], cardStyle: 'person', paged: false, since: 6 }],
+    pages: [
+      {
+        id: 'wittydemo', kind: 'custom', title: 'Demo',
+        sections: [
+          kit.carousel('c', { type: 'wittydemo.people' }, { cardStyle: 'person', maxItems: 10 }),
+          kit.numberedRow('n', { type: 'topRated' }, { numbers: 'index' }),
+          kit.shelf('s', { type: 'wittydemo.people' }, { headingStyle: 'band', peek: false, seeAllCard: 'never' }),
+          kit.widgetGrid('w', [kit.widget('w1', { kind: 'clock', x: 0, y: 0, w: 2 }), kit.widget('w2', { kind: 'stats', x: 2, y: 0 })], { columns: 4 }),
+          kit.crossBar('x', [kit.section('t1', 'Tab', { props: { label: 'People' }, children: [kit.shelf('r', { type: 'wittydemo.people' })] })], { default: 't1' }),
+        ],
+      },
+    ],
+    navigation: [{ id: 'wittydemo', type: 'page', page: 'wittydemo', icon: 'users' }],
+  })
+  assert.deepEqual(kit.checkModuleUI(ui, 'wittydemo'), [])
+  assert.deepEqual(kit.credits('cr', { type: 'credits', item: '$item' }, { parts: ['cast'] }), { id: 'cr', component: 'Credits', props: { parts: ['cast'] }, source: { type: 'credits', item: '$item' } })
+})
+
 test('checkSetting checks a value as the server does', () => {
   assert.equal(kit.checkSetting({ key: 'n', kind: 'int', min: 1, max: 3 }, 2), '')
   assert.equal(kit.checkSetting({ key: 'n', kind: 'int', min: 1, max: 3 }, 4), 'n is between 1 and 3')
