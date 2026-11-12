@@ -2,6 +2,8 @@
 
 What a WittyMediaServer plugin needs to be a project of its own: the manifest, the rules for version ranges, the protocol a helper process speaks, and the tool that builds and signs a release. It's for people who make modules.
 
+**The specification** of a module, everything one is held to at module API 4 (and where API 3 differs), is [docs/SPEC.md](docs/SPEC.md): its manifest, delivery kinds, permissions, the helper protocol, its SDUI, releases and signing, catalogues and stores, withdrawals, forks, its status, and the overrides a server allows.
+
 <!-- pictures -->
 
 ![The module store in WittyMediaServer](docs/images/module-store.webp)
@@ -35,7 +37,7 @@ func main() {
 
 | Command | What it does |
 |---|---|
-| `check` | Checks a folder's manifest |
+| `check` | Checks a folder's manifest and `sdui.json`, listing every problem by file and field |
 | `pack` | Builds a release: a program for every system, or a browser bundle with `-web` |
 | `sign`, `keygen` | Signs a checksum list, and makes a key |
 | `bump`, `needs-bump` | Raises the version everywhere it's written, and fails if code changed since the last tag with no new version |
@@ -44,7 +46,7 @@ func main() {
 
 - **`kit/`:** `kit/module-kit.sh` writes a module's workflows and the Releasing section of its README, and `kit/facade` writes the stubs a server uses to call a module.
 
-The design, including what each version range means, is in Making a module, in **Help** inside WittyMediaServer.
+The specification is [docs/SPEC.md](docs/SPEC.md). The reasoning behind it, including what each version range means, is in Making a module, in **Help** inside WittyMediaServer.
 
 ## How to get it
 
