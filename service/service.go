@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/wittywilla/wittymodule"
+	"github.com/wittywilla/wittymodule/sdui"
 )
 
 // TokenHeader carries the start's secret on every request.
@@ -58,6 +59,10 @@ type Config struct {
 	Routes func(mux *http.ServeMux)
 	// OnStop runs when the server goes away, before the process does.
 	OnStop func()
+	// UI answers the server's SDUI calls on the helper protocol (sdui.items, sdui.image,
+	// settings.changed), for a module of API 4 whose sdui.json has sources, pictures or
+	// settings. Its zero value answers none of them.
+	UI sdui.Answers
 	// Busy says it has work going on, such as a game being played, with nobody calling.
 	Busy func() bool
 }
@@ -79,9 +84,12 @@ func Main(c Config) {
 		os.Exit(1)
 	}
 	// Leaving when the server closes the pipe means it can't outlive the server.
-	err = wittymodule.Serve(os.Stdin, os.Stdout, wittymodule.Hello{Module: m.ID, Version: m.Version, API: m.API}, func(method string, _ json.RawMessage) (any, []byte, error) {
+	err = wittymodule.Serve(os.Stdin, os.Stdout, wittymodule.Hello{Module: m.ID, Version: m.Version, API: m.API}, func(method string, params json.RawMessage) (any, []byte, error) {
 		if method == MethodStart {
 			return started, nil, nil
+		}
+		if res, blob, err, ok := c.UI.Handle(method, params); ok {
+			return res, blob, err
 		}
 		return nil, nil, &wittymodule.CallError{Code: "unknown-method", Message: fmt.Sprintf("this version has no %q", method)}
 	})

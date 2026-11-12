@@ -5,6 +5,8 @@ What changed in WittyModule, newest first. What changed before it had a reposito
 
 ## Unreleased
 
+- **A service module answers the server's SDUI calls:** `service.Config.UI` (`sdui.Answers`) answers `sdui.items`, `sdui.image` and `settings.changed` on the helper protocol, which a service otherwise refused as unknown methods.
+
 - Module API 4: a module carries its own SDUI, `sdui.json` beside its manifest: its pages, sections, components, data sources, views, menu entries, settings and theme scope (WittyMediaServer docs/SDUI-MODULES.md). `wittymodule check` requires it from API 4 and checks it; `pack` puts it in every archive. The kit is `sdui/` for Go (write, check, golden test, answer the server's `sdui.items`, `sdui.image` and `settings.changed`) and `kit/sdui/` for web bundles. Servers that take API 4 still take API 3.
 - The kit writes the licence each project's own `module.json` or `package.json` names, instead of Apache-2.0 for all of them. Running it again no longer undoes WittyCouch Host's README.
 - `pack -prebuilt <folder>` packs a program built with something other than Go, for the systems it was built for. The kit leaves such a repository's release workflow alone.
