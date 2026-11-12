@@ -39,9 +39,9 @@ const (
 const MaxBytes = 1 << 20
 
 // CatalogRevision is the catalogue revision this kit's copy of the catalogue is.
-const CatalogRevision = 6
+const CatalogRevision = 7
 
-// CatalogJSON is a copy of the server's catalogue (GET /api/v1/sdui/catalog), revision 6.
+// CatalogJSON is a copy of the server's catalogue (GET /api/v1/sdui/catalog), revision 7.
 //
 //go:embed catalog.json
 var CatalogJSON []byte
