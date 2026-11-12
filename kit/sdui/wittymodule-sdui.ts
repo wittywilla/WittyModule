@@ -65,8 +65,8 @@ export const PAGE_LIMITS = {
 export const ICONS = ['home', 'library', 'movie', 'show', 'tv', 'live', 'guide', 'record', 'music', 'album', 'artist', 'mic', 'radio', 'podcast', 'book', 'audiobook', 'comic', 'photo', 'video', 'disc', 'game', 'collection', 'list', 'folder', 'search', 'settings', 'user', 'users', 'kids', 'star', 'heart', 'clock', 'history', 'calendar', 'sparkles', 'fire', 'shuffle', 'play', 'download', 'share', 'globe', 'info', 'warning', 'check', 'plus', 'grid', 'filter', 'sort', 'plug', 'chart', 'devices', 'more'] as const
 export const CARD_STYLES = ['poster', 'landscape', 'progress', 'episode', 'square', 'album', 'circle', 'person', 'book', 'game', 'photo', 'channel', 'tile', 'plate', 'block', 'logo', 'chip'] as const
 /** The catalogue's components a page may use (the authored ones). */
-export const COMPONENTS = ['Hero', 'Shelf', 'Grid', 'Tabs', 'Tab', 'Carousel', 'CrossBar', 'WidgetGrid', 'Widget', 'NumberedRow', 'FilterBar', 'Dock', 'KeyLegend', 'DetailHeader', 'SeasonList', 'TrackList', 'Credits', 'Banner', 'Text', 'Notice', 'Divider', 'Spacer', 'Stack', 'Split', 'Button', 'Image', 'SearchBox', 'List', 'ListItem', 'Form', 'NativeView'] as const
-export const SOURCES = ['continueWatching', 'nextUp', 'recommended', 'watchLater', 'liked', 'statistics', 'serverStatus', 'savedView', 'recentlyAdded', 'recentlyReleased', 'topRated', 'random', 'browse', 'genre', 'studio', 'tag', 'collection', 'collections', 'featured', 'libraries', 'genres', 'liveNow', 'recordings', 'books', 'albums', 'artists', 'continuePlaying', 'credits', 'filmography', 'episodes', 'tracks', 'similar', 'versions', 'listsFor', 'newList', 'devices', 'year', 'activity', 'notices', 'search'] as const
+export const COMPONENTS = ['Hero', 'Shelf', 'Grid', 'Tabs', 'Tab', 'Carousel', 'CrossBar', 'WidgetGrid', 'Widget', 'NumberedRow', 'FilterBar', 'Dock', 'KeyLegend', 'DetailHeader', 'SeasonList', 'TrackList', 'Credits', 'Banner', 'Text', 'Notice', 'Divider', 'Spacer', 'Stack', 'Split', 'Button', 'Image', 'SearchBox', 'List', 'ListItem', 'Form', 'QR', 'NativeView'] as const
+export const SOURCES = ['continueWatching', 'nextUp', 'recommended', 'watchLater', 'liked', 'statistics', 'serverStatus', 'savedView', 'recentlyAdded', 'recentlyReleased', 'topRated', 'random', 'browse', 'genre', 'studio', 'tag', 'collection', 'collections', 'featured', 'libraries', 'genres', 'liveNow', 'recordings', 'books', 'formats', 'albums', 'artists', 'continuePlaying', 'credits', 'filmography', 'episodes', 'tracks', 'similar', 'versions', 'listsFor', 'newList', 'devices', 'year', 'activity', 'notices', 'search'] as const
 export const PAGE_KINDS = ['home', 'libraries', 'library', 'detail', 'search', 'livetv', 'music', 'photos', 'books', 'games', 'collections', 'custom'] as const
 export const FORM_FACTORS = ['tv', 'phone', 'tablet', 'desktop', 'web', 'headset'] as const
 export const PLATFORMS = ['web', 'tvos', 'ios', 'android', 'androidtv', 'desktop', 'visionos', 'quest'] as const
@@ -76,7 +76,7 @@ export const MEDIA_KINDS = ['movie', 'show', 'episode', 'video', 'disc', 'album'
 export const PLACEMENTS = ['primary', 'more', 'end', 'hidden'] as const
 export const REPEATS = ['libraries', 'pinnedViews', 'collections', 'bookSeries', 'bookAuthors', 'personParts'] as const
 /** The catalogue's commands: what a `command` action's `op` may be. */
-export const COMMANDS = ['watchLater.add', 'watchLater.remove', 'watched.set', 'watched.clear', 'selectTab', 'control.open', 'wittyplay.room.create', 'wittyplay.room.join', 'wittyplay.room.invite', 'wittyplay.state.save', 'wittyplay.state.load', 'wittyplay.state.delete', 'wittyplay.controller.assign', 'wittyplay.room.close', 'wittyplay.online.set', 'wittyplay.online.share', 'wittyplay.online.appear', 'wittyplay.kids.friends', 'wittyplay.screenshot.keep', 'wittyplay.memory.delete', 'collection.add', 'collection.remove', 'collection.create', 'session.end', 'sessions.endOthers', 'history.clear', 'rewind.open', 'controller.remap', 'refresh'] as const
+export const COMMANDS = ['watchLater.add', 'watchLater.remove', 'watched.set', 'watched.clear', 'selectTab', 'control.open', 'wittyplay.room.create', 'wittyplay.room.join', 'wittyplay.room.invite', 'wittyplay.state.save', 'wittyplay.state.load', 'wittyplay.state.delete', 'wittyplay.controller.assign', 'wittyplay.room.leave', 'wittyplay.room.close', 'wittyplay.online.set', 'wittyplay.online.share', 'wittyplay.online.appear', 'wittyplay.kids.friends', 'wittyplay.screenshot.keep', 'wittyplay.memory.delete', 'collection.add', 'collection.remove', 'collection.create', 'session.end', 'sessions.endOthers', 'history.clear', 'rewind.open', 'controller.remap', 'refresh'] as const
 export const PERSONAL_KINDS = ['reorder', 'hide', 'pin', 'density', 'cardSize', 'defaultTab'] as const
 /** The views every app may know for a NativeView; a module adds its own. */
 export const NATIVE_VIEWS = ['guide', 'photoTimeline', 'photoMap', 'coverFlow'] as const
@@ -586,6 +586,21 @@ export interface ActionProps {
   back?: boolean
 }
 
+/** A QR code of `value` (a route or an https address; the join link of a room), with a `label` under it (revision 8). Draws from the section's `source` (an item's `link`) when `value` is left out. */
+export interface QRProps {
+  value?: string
+  label?: string
+  size?: CardSize
+}
+
+/** A page-level filter bar: `target` is optional (revision 8), and `fields` may also be `reading`, `format`, `minRating`. */
+export interface FilterBarProps {
+  target?: string
+  fields?: string[]
+  sorts?: string[]
+  showCount?: boolean
+}
+
 export interface CreditsProps {
   title?: string
   parts?: Array<'cast' | 'guests' | 'crew'>
@@ -618,6 +633,8 @@ export interface PersonItem {
   control?: Control
   /** The buttons of a Shelf's detail panel while the item has focus. */
   actions?: ItemAction[]
+  /** What a QR section draws for the item: a route or an https address only. */
+  link?: string
 }
 
 /** A value a catalogue command takes besides the action's item. `bool` and `int`/`ints` params are written as JSON numbers and booleans, not strings. */
@@ -786,6 +803,12 @@ export function carousel(id: string, source: Source, props?: CarouselProps, extr
 /** A ranked row with big numbers. */
 export function numberedRow(id: string, source: Source, props?: NumberedRowProps, extras?: SectionExtras): Section {
   return made(id, 'NumberedRow', props, source, extras)
+}
+
+/** A QR code. */
+export function qr(id: string, props?: QRProps, extras?: SectionExtras & { source?: Source }): Section {
+  const { source, ...rest } = extras ?? {}
+  return made(id, 'QR', props, source, rest)
 }
 
 /** A form: list rows with controls and a submit button. Children are List, Text, Notice, Divider or Spacer sections. */
@@ -1189,6 +1212,10 @@ class Checker {
     if (p.scope && !scopePattern.test(p.scope)) this.err('/scope', 'Use a module\'s ID such as wittymusic, or a name of your own in lower case.', `${q(p.scope)} is not a theme scope`)
     if ((p.ttlSeconds ?? 0) < 0 || (p.ttlSeconds ?? 0) > 86400) this.err('/ttlSeconds', 'Use 0 for the default.', 'ttlSeconds is between 0 and 86400')
     this.regions(p.regions)
+    if (p.slot) {
+      if (!contains(SETTINGS_SLOTS, p.slot)) this.err('/slot', 'Use you.games or people.profile.', `${q(p.slot)} is not a place settings pages can go`)
+      if (p.kind !== 'custom') this.err('/slot', 'Use a custom page.', 'only a custom page can go into Settings')
+    }
     const m = p.match
     if (isObj(m) && kind) {
       for (const field of ['library', 'libraryKind', 'mediaKind']) {

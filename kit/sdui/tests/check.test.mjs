@@ -118,6 +118,16 @@ test('revision 8: regions, slots and forms are checked as the server checks them
   for (const p of ['/pages/0/regions/statusBar/0/kind', '/pages/0/regions/systemDock/0/route', '/settings/0/admin']) assert.ok(paths.includes(p) || paths.some((x) => x.endsWith(p.replace('/pages/0', ''))), p + ' in ' + paths)
 })
 
+test('revision 8 additions: a QR section, a page slot, a page-level filter bar', () => {
+  const ui = kit.moduleUI('wittydemo', {
+    pages: [{ id: 'wittydemo', kind: 'custom', title: 'Demo', slot: 'you.games', sections: [kit.qr('q', { value: '/games?join=ABC', label: 'Scan to join', size: 'l' })] }],
+    navigation: [],
+  })
+  assert.deepEqual(kit.checkModuleUI(ui, 'wittydemo').filter((i) => i.severity === 'error'), [])
+  ui.pages[0].slot = 'elsewhere'
+  assert.ok(kit.checkModuleUI(ui, 'wittydemo').some((i) => i.path === '/pages/0/slot'))
+})
+
 test('checkSetting checks a value as the server does', () => {
   assert.equal(kit.checkSetting({ key: 'n', kind: 'int', min: 1, max: 3 }, 2), '')
   assert.equal(kit.checkSetting({ key: 'n', kind: 'int', min: 1, max: 3 }, 4), 'n is between 1 and 3')
