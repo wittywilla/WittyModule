@@ -20,6 +20,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -50,6 +51,9 @@ type Package struct {
 	OutImp string `json:"outImport"`
 	// Manual names types, functions and methods ("Type.Method") written by hand, on both sides.
 	Manual []string `json:"manual,omitempty"`
+	// Internal names types, functions and methods used only inside the module: the server gets
+	// no copy and no stub of them, and the module answers no call for them.
+	Internal []string `json:"internal,omitempty"`
 	// Local names functions and methods copied as they are, not called: small, pure, and asked
 	// for constantly.
 	Local []string `json:"local,omitempty"`
@@ -81,7 +85,25 @@ func main() {
 	cfgPath := flag.String("config", "facade.json", "")
 	modDir := flag.String("module", ".", "the module's folder")
 	srvDir := flag.String("server", "", "the server's folder")
+	check := flag.Bool("check", false, "write nothing: fail if a generated file differs from what's checked in")
 	flag.Parse()
+	var stale []string
+	// put writes a generated file, or with -check notes it if what's there differs.
+	put := func(dst string, src []byte) {
+		if *check {
+			if have, err := os.ReadFile(dst); err != nil || !bytes.Equal(have, src) {
+				stale = append(stale, dst)
+			}
+			return
+		}
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			fatal(err)
+		}
+		if err := os.WriteFile(dst, src, 0o644); err != nil {
+			fatal(err)
+		}
+		fmt.Println("wrote", dst)
+	}
 	var cfg Config
 	b, err := os.ReadFile(*cfgPath)
 	if err != nil {
@@ -112,16 +134,12 @@ func main() {
 			fatal(err)
 		}
 		if *srvDir != "" {
-			dst := filepath.Join(*srvDir, filepath.FromSlash(p.cfg.Out), "gen.go")
-			if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
-				fatal(err)
-			}
-			if err := os.WriteFile(dst, out, 0o644); err != nil {
-				fatal(err)
-			}
-			fmt.Println("wrote", dst)
+			put(filepath.Join(*srvDir, filepath.FromSlash(p.cfg.Out), "gen.go"), out)
 		}
 		for _, s := range p.skipped {
+			if *check {
+				break
+			}
 			fmt.Printf("  by hand: %s.%s\n", p.cfg.Name, s)
 		}
 	}
@@ -148,13 +166,13 @@ func main() {
 		_ = os.WriteFile(filepath.Join(*modDir, cfg.Rpc, "gen.go"), dispatch.Bytes(), 0o644)
 		fatal(fmt.Errorf("the module's side: %w", err))
 	}
-	if err := os.MkdirAll(filepath.Join(*modDir, cfg.Rpc), 0o755); err != nil {
-		fatal(err)
+	put(filepath.Join(*modDir, cfg.Rpc, "gen.go"), src)
+	if len(stale) > 0 {
+		for _, f := range stale {
+			fmt.Fprintln(os.Stderr, "facade: differs from what it generates:", f)
+		}
+		fatal(errors.New("generated files are out of date: run kit/facade again and commit what it writes"))
 	}
-	if err := os.WriteFile(filepath.Join(*modDir, cfg.Rpc, "gen.go"), src, 0o644); err != nil {
-		fatal(err)
-	}
-	fmt.Println("wrote", filepath.Join(*modDir, cfg.Rpc, "gen.go"))
 }
 
 func fatal(err error) {
@@ -165,6 +183,10 @@ func fatal(err error) {
 func load(modDir string, p Package) (*pkgInfo, error) {
 	pi := &pkgInfo{cfg: p, fset: token.NewFileSet(), types: map[string]*decl{}, values: map[string]*decl{}, funcs: map[string]*decl{}, manual: map[string]bool{}, local: map[string]bool{}}
 	for _, m := range p.Manual {
+		pi.manual[m] = true
+	}
+	// Left out as a hand-written one is, without anything written by hand in its place.
+	for _, m := range p.Internal {
 		pi.manual[m] = true
 	}
 	for _, m := range p.Local {
@@ -593,10 +615,36 @@ func stubs(cfg Config, p *pkgInfo, all map[string]*pkgInfo, cases, sentinels *by
 }
 
 // usesPackage says whether a package's name is used in code: as itself, not as the end of
-// another name or a field.
+// another name or a field, and not in a comment or a string. text is a file's declarations,
+// or a type; where it doesn't parse, the plain text is searched.
 func usesPackage(text, name string) bool {
+	if names, ok := selectorNames(text); ok {
+		return names[name]
+	}
 	re := regexp.MustCompile(`(^|[^.\w"/])` + regexp.QuoteMeta(name) + `\.[A-Z]`)
 	return re.MatchString(text)
+}
+
+// selectorNames are the names code puts before a dot: x in x.Y.
+func selectorNames(text string) (map[string]bool, bool) {
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "", "package p\n\n"+text, parser.SkipObjectResolution)
+	if err != nil {
+		// A type alone, as a parameter's is.
+		if f, err = parser.ParseFile(fset, "", "package p\n\nvar _ "+text, parser.SkipObjectResolution); err != nil {
+			return nil, false
+		}
+	}
+	out := map[string]bool{}
+	ast.Inspect(f, func(n ast.Node) bool {
+		if se, ok := n.(*ast.SelectorExpr); ok {
+			if id, ok := se.X.(*ast.Ident); ok {
+				out[id.Name] = true
+			}
+		}
+		return true
+	})
+	return out, true
 }
 
 // varType is the type of a variable holding a literal, or "".
