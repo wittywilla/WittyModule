@@ -312,6 +312,9 @@ type SourceSpec struct {
 	Example json.RawMessage `json:"example,omitempty"`
 	// Module is the module that answers the source; "" for the server.
 	Module string `json:"module,omitempty"`
+	// TopShelf offers the source for tvOS Top Shelf, as a row of its own: only for a
+	// source with no required parameters and no PageKinds.
+	TopShelf bool `json:"topShelf,omitempty"`
 }
 
 // Module is one module's SDUI file.

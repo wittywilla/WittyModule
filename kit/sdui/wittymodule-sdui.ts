@@ -66,15 +66,15 @@ export const ICONS = ['home', 'library', 'movie', 'show', 'tv', 'live', 'guide',
 export const CARD_STYLES = ['poster', 'landscape', 'progress', 'episode', 'square', 'album', 'circle', 'person', 'book', 'game', 'photo', 'channel', 'tile', 'chip'] as const
 /** The catalogue's components a page may use (the authored ones). */
 export const COMPONENTS = ['Hero', 'Shelf', 'Grid', 'Tabs', 'Tab', 'FilterBar', 'DetailHeader', 'SeasonList', 'TrackList', 'Banner', 'Text', 'Notice', 'Divider', 'Spacer', 'Stack', 'Split', 'Button', 'Image', 'SearchBox', 'List', 'ListItem', 'NativeView'] as const
-export const SOURCES = ['continueWatching', 'nextUp', 'recommended', 'watchLater', 'savedView', 'recentlyAdded', 'recentlyReleased', 'topRated', 'random', 'browse', 'genre', 'studio', 'tag', 'collection', 'collections', 'featured', 'libraries', 'genres', 'liveNow', 'recordings', 'albums', 'artists', 'continuePlaying', 'episodes', 'tracks', 'similar', 'search'] as const
+export const SOURCES = ['continueWatching', 'nextUp', 'recommended', 'watchLater', 'liked', 'statistics', 'savedView', 'recentlyAdded', 'recentlyReleased', 'topRated', 'random', 'browse', 'genre', 'studio', 'tag', 'collection', 'collections', 'featured', 'libraries', 'genres', 'liveNow', 'recordings', 'books', 'albums', 'artists', 'continuePlaying', 'episodes', 'tracks', 'similar', 'search'] as const
 export const PAGE_KINDS = ['home', 'libraries', 'library', 'detail', 'search', 'livetv', 'music', 'photos', 'books', 'games', 'collections', 'custom'] as const
 export const FORM_FACTORS = ['tv', 'phone', 'tablet', 'desktop', 'web'] as const
 export const PLATFORMS = ['web', 'tvos', 'ios', 'android', 'androidtv', 'desktop'] as const
 export const PROFILE_KINDS = ['adult', 'kids', 'guest'] as const
 export const LIBRARY_KINDS = ['movies', 'discs', 'shows', 'anime', 'videos', 'shorts', 'channels', 'musicvideos', 'commercials', 'music', 'audiobooks', 'podcasts', 'radio', 'books', 'photos', 'games'] as const
-export const MEDIA_KINDS = ['movie', 'show', 'episode', 'video', 'disc', 'album', 'track', 'book', 'audiobook', 'podcast', 'game', 'photo', 'collection'] as const
+export const MEDIA_KINDS = ['movie', 'show', 'episode', 'video', 'disc', 'album', 'artist', 'track', 'book', 'audiobook', 'podcast', 'game', 'photo', 'collection'] as const
 export const PLACEMENTS = ['primary', 'more', 'end', 'hidden'] as const
-export const REPEATS = ['libraries', 'pinnedViews', 'collections'] as const
+export const REPEATS = ['libraries', 'pinnedViews', 'collections', 'bookSeries', 'bookAuthors'] as const
 export const PERSONAL_KINDS = ['reorder', 'hide', 'pin', 'density', 'cardSize', 'defaultTab'] as const
 /** The views every app may know for a NativeView; a module adds its own. */
 export const NATIVE_VIEWS = ['guide', 'photoTimeline', 'photoMap', 'coverFlow'] as const
@@ -316,6 +316,8 @@ export interface ModuleSource {
   since: number
   example?: unknown
   module?: string
+  /** Offer it for tvOS Top Shelf, as a row of its own: only with no required params and no pageKinds. */
+  topShelf?: boolean
 }
 
 /** A named section with properties of its own; `{{name}}` in its section is a property's value. */
