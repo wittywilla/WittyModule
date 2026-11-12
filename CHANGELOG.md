@@ -5,6 +5,7 @@ What changed in WittyModule, newest first. What changed before it had a reposito
 
 ## Unreleased
 
+- **A version says how finished it is:** `status` in `module.json` (`stable` when left out, `beta`, `experimental` or `incomplete`) and `statusNote`, one line of at most 500 characters saying what isn't done or may break, required for `experimental` and `incomplete`. A server warns before installing an unfinished version and asks an administrator to agree. `Manifest.Problems` lists everything wrong with a manifest, each with its field; `Validate` still reports the first.
 - `sdui.Check` (and so `wittymodule check` and the golden test) is the server's own validator: `sdui/internal/core` is a copy of WittyMediaServer's `pkg/sdui`, kept current with `kit/sync-sdui-core.sh` and compared with a server checkout beside this one by the tests. A module that passes is no longer refused at install for its SDUI (a settings label over 80 characters once passed). `wittymodule check` also refuses data sources on a module that isn't a helper.
 - **A service module answers the server's SDUI calls:** `service.Config.UI` (`sdui.Answers`) answers `sdui.items`, `sdui.image` and `settings.changed` on the helper protocol, which a service otherwise refused as unknown methods.
 

@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // The module API: the contract between the server and its plugins. A plugin
@@ -126,7 +127,25 @@ type Manifest struct {
 
 	// Pages are the pages it adds to the app, which its web bundle draws.
 	Pages []Page `json:"pages,omitempty"`
+
+	// Status says how finished this version is (module API 4 adds it; an older server ignores
+	// it): stable when left out, beta, experimental or incomplete. StatusNote says, in one
+	// line, what isn't done or may break, and is required for experimental and incomplete.
+	Status     string `json:"status,omitempty"`
+	StatusNote string `json:"statusNote,omitempty"`
 }
+
+// How finished a version says it is. A server installs an experimental or incomplete version
+// only after an administrator has read its note and agreed (an override of kind incomplete).
+const (
+	StatusStable       = "stable"       // the default: nothing known to be missing
+	StatusBeta         = "beta"         // complete, and still being tried out
+	StatusExperimental = "experimental" // works in parts, may change or break
+	StatusIncomplete   = "incomplete"   // parts are missing, which StatusNote names
+)
+
+// MaxStatusNote is the longest statusNote, in characters.
+const MaxStatusNote = 500
 
 // Where a module's page is listed in the app.
 const (
@@ -156,6 +175,7 @@ const (
 	maxText         = 2000
 	maxListed       = 64
 	maxCapabilities = 4096
+	maxPages        = 16
 )
 
 // ParseManifest reads and checks a manifest.
@@ -170,102 +190,135 @@ func ParseManifest(b []byte) (*Manifest, error) {
 	return &m, nil
 }
 
-// Validate checks that a manifest makes sense on its own.
+// Problem is one thing wrong with a manifest: the field it is in, as module.json spells it
+// (pages[2].title for a part of one), and what is wrong, in words.
+type Problem struct {
+	Field   string
+	Message string
+}
+
+func (p Problem) String() string { return p.Field + ": " + p.Message }
+
+// Validate checks that a manifest makes sense on its own. It reports the first problem;
+// Problems has them all.
 func (m *Manifest) Validate() error {
-	name := m.ID
-	if name == "" {
-		name = "the module"
+	ps := m.Problems()
+	if len(ps) == 0 {
+		return nil
 	}
-	switch {
-	case !idRe.MatchString(m.ID):
-		return fmt.Errorf("manifest: %q is not a module id (lowercase letters and digits)", m.ID)
-	case m.Name == "":
-		return fmt.Errorf("manifest of %s: no name", name)
-	case !Valid(m.Version):
-		return fmt.Errorf("manifest of %s: %q is not a version", name, m.Version)
-	case !repoRe.MatchString(m.Repo):
-		return fmt.Errorf("manifest of %s: %q is not a GitHub repository (owner/name)", name, m.Repo)
-	case m.API < 1:
-		return fmt.Errorf("manifest of %s: api must be 1 or more", name)
-	case !Valid(m.MinServer):
-		return fmt.Errorf("manifest of %s: minServer %q is not a version", name, m.MinServer)
+	if ps[0].Field == "id" {
+		return fmt.Errorf("manifest: %s", ps[0].Message)
+	}
+	return fmt.Errorf("manifest of %s: %s", m.ID, ps[0].Message)
+}
+
+// Problems is everything wrong with a manifest on its own, in the order of its fields, each
+// with where it is: what `wittymodule check` lists.
+func (m *Manifest) Problems() []Problem {
+	var out []Problem
+	bad := func(field, format string, args ...any) {
+		out = append(out, Problem{Field: field, Message: fmt.Sprintf(format, args...)})
+	}
+	if !idRe.MatchString(m.ID) {
+		bad("id", "%q is not a module id (lowercase letters and digits)", m.ID)
+	}
+	if m.Name == "" {
+		bad("name", "no name")
+	}
+	if !Valid(m.Version) {
+		bad("version", "%q is not a version", m.Version)
+	}
+	if !repoRe.MatchString(m.Repo) {
+		bad("repo", "%q is not a GitHub repository (owner/name)", m.Repo)
+	}
+	if m.API < 1 {
+		bad("api", "api must be 1 or more")
+	}
+	minOK := Valid(m.MinServer)
+	if !minOK {
+		bad("minServer", "minServer %q is not a version", m.MinServer)
 	}
 	if _, _, ok := parseMax(m.MaxServer); !ok {
-		return fmt.Errorf("manifest of %s: maxServer %q is not a version or a series such as 0.5.x", name, m.MaxServer)
-	}
-	if !atMost(m.MinServer, m.MaxServer) {
-		return fmt.Errorf("manifest of %s: minServer %s is past maxServer %s", name, m.MinServer, m.MaxServer)
+		bad("maxServer", "maxServer %q is not a version or a series such as 0.5.x", m.MaxServer)
+	} else if minOK && !atMost(m.MinServer, m.MaxServer) {
+		bad("maxServer", "minServer %s is past maxServer %s", m.MinServer, m.MaxServer)
 	}
 	switch m.Delivery {
 	case DeliveryHelper, DeliveryProgram:
 		if !entryRe.MatchString(m.Entry) {
-			return fmt.Errorf("manifest of %s: entry %q is not a program name", name, m.Entry)
+			bad("entry", "entry %q is not a program name", m.Entry)
 		}
 	case DeliveryWeb:
 		// Empty is allowed while a bundle has never been released; a release needs one
 		// (ValidateRelease).
-		for _, f := range []string{m.Entry, m.Style} {
-			if f != "" && !entryRe.MatchString(f) {
-				return fmt.Errorf("manifest of %s: %q is not a file name in the bundle", name, f)
+		for _, f := range []struct{ field, name string }{{"entry", m.Entry}, {"style", m.Style}} {
+			if f.name != "" && !entryRe.MatchString(f.name) {
+				bad(f.field, "%q is not a file name in the bundle", f.name)
 			}
 		}
 	case DeliveryLibrary, DeliveryBuiltin:
 	default:
-		return fmt.Errorf("manifest of %s: delivery %q is not helper, program, web, library or builtin", name, m.Delivery)
+		bad("delivery", "delivery %q is not helper, program, web, library or builtin", m.Delivery)
 	}
 	if m.DataFormat < 0 || m.DataFrom < 0 || m.DataFrom > m.DataFormat {
-		return fmt.Errorf("manifest of %s: dataFrom %d and dataFormat %d don't make sense", name, m.DataFrom, m.DataFormat)
+		bad("dataFrom", "dataFrom %d and dataFormat %d don't make sense", m.DataFrom, m.DataFormat)
 	}
-	for _, s := range []string{m.Group, m.Summary, m.Updates, m.Stays} {
-		if len(s) > maxText {
-			return fmt.Errorf("manifest of %s: a description is too long", name)
+	for _, f := range []struct{ field, s string }{{"group", m.Group}, {"summary", m.Summary}, {"updates", m.Updates}, {"stays", m.Stays}} {
+		if len(f.s) > maxText {
+			bad(f.field, "a description is too long (at most %d bytes)", maxText)
 		}
 	}
-	if len(m.Needs) > maxListed || len(m.Permissions) > maxListed || len(m.Libraries) > maxListed || len(m.Requires) > maxListed {
-		return fmt.Errorf("manifest of %s: too many entries in a list", name)
-	}
-	for _, s := range m.Needs {
-		if len(s) > maxText {
-			return fmt.Errorf("manifest of %s: a need is described at too great a length", name)
+	for _, f := range []struct {
+		field string
+		n     int
+	}{{"needs", len(m.Needs)}, {"permissions", len(m.Permissions)}, {"libraries", len(m.Libraries)}, {"requires", len(m.Requires)}} {
+		if f.n > maxListed {
+			bad(f.field, "too many entries in a list (at most %d)", maxListed)
 		}
 	}
-	for _, p := range m.Permissions {
+	for i, s := range m.Needs {
+		if len(s) > maxText {
+			bad(fmt.Sprintf("needs[%d]", i), "a need is described at too great a length")
+		}
+	}
+	for i, p := range m.Permissions {
 		switch p {
 		case PermissionNetwork, PermissionPrograms, PermissionDevices, PermissionData:
 		default:
-			return fmt.Errorf("manifest of %s: %q is not a permission", name, p)
+			bad(fmt.Sprintf("permissions[%d]", i), "%q is not a permission", p)
 		}
 	}
 	if len(m.Pages) > 0 && !m.HasWeb() {
-		return fmt.Errorf("manifest of %s: only a web bundle can draw a page", name)
+		bad("pages", "only a web bundle can draw a page")
 	}
 	if len(m.Programs) > maxListed {
-		return fmt.Errorf("manifest of %s: too many programs", name)
+		bad("programs", "too many programs")
 	}
-	for _, p := range m.Programs {
+	for i, p := range m.Programs {
 		if !entryRe.MatchString(p) || !m.PerPlatform() {
-			return fmt.Errorf("manifest of %s: %q is not a program that can come with it", name, p)
+			bad(fmt.Sprintf("programs[%d]", i), "%q is not a program that can come with it", p)
 		}
 	}
-	for _, f := range []string{m.WebEntry, m.WebStyle} {
-		if f != "" && (!entryRe.MatchString(f) || !m.PerPlatform()) {
-			return fmt.Errorf("manifest of %s: %q is not a file of a helper's web part", name, f)
+	for _, f := range []struct{ field, name string }{{"webEntry", m.WebEntry}, {"webStyle", m.WebStyle}} {
+		if f.name != "" && (!entryRe.MatchString(f.name) || !m.PerPlatform()) {
+			bad(f.field, "%q is not a file of a helper's web part", f.name)
 		}
 	}
-	if len(m.Pages) > 16 {
-		return fmt.Errorf("manifest of %s: too many pages", name)
+	if len(m.Pages) > maxPages {
+		bad("pages", "too many pages (at most %d)", maxPages)
 	}
 	seen := map[string]bool{}
-	for _, p := range m.Pages {
+	for i, p := range m.Pages {
+		at := fmt.Sprintf("pages[%d]", i)
 		switch {
 		case !wordRe.MatchString(p.ID) || seen[p.ID]:
-			return fmt.Errorf("manifest of %s: %q is not a page's id, or there are two of it", name, p.ID)
+			bad(at+".id", "%q is not a page's id, or there are two of it", p.ID)
 		case p.Title == "" || !plainText(p.Title, 64, false):
-			return fmt.Errorf("manifest of %s: page %s needs a title, in one line of plain text", name, p.ID)
+			bad(at+".title", "page %s needs a title, in one line of plain text", p.ID)
 		case p.Where != PageMain && p.Where != PageSettings:
-			return fmt.Errorf("manifest of %s: page %s is listed in %q, not %s or %s", name, p.ID, p.Where, PageMain, PageSettings)
+			bad(at+".where", "page %s is listed in %q, not %s or %s", p.ID, p.Where, PageMain, PageSettings)
 		case p.Icon != "" && !wordRe.MatchString(p.Icon):
-			return fmt.Errorf("manifest of %s: page %s has %q for an icon", name, p.ID, p.Icon)
+			bad(at+".icon", "page %s has %q for an icon", p.ID, p.Icon)
 		}
 		seen[p.ID] = true
 	}
@@ -277,9 +330,40 @@ func (m *Manifest) Validate() error {
 		}
 	}
 	if total > maxCapabilities {
-		return fmt.Errorf("manifest of %s: its capabilities are too large", name)
+		bad("capabilities", "its capabilities are too large (at most %d bytes)", maxCapabilities)
 	}
-	return nil
+	return append(out, statusProblems(m.Status, m.StatusNote)...)
+}
+
+// statusProblems checks a status and its note, as a manifest and a catalogue carry them.
+func statusProblems(status, note string) []Problem {
+	var out []Problem
+	switch status {
+	case "", StatusStable, StatusBeta, StatusExperimental, StatusIncomplete:
+	default:
+		out = append(out, Problem{"status", fmt.Sprintf("%q is not a status: it is %s, %s, %s or %s (or left out, which is %s)",
+			status, StatusStable, StatusBeta, StatusExperimental, StatusIncomplete, StatusStable)})
+	}
+	if utf8.RuneCountInString(note) > MaxStatusNote || !plainText(note, 4*MaxStatusNote, false) {
+		out = append(out, Problem{"statusNote", fmt.Sprintf("it is one line of plain text of at most %d characters, with no control characters", MaxStatusNote)})
+	} else if strings.TrimSpace(note) == "" && (status == StatusExperimental || status == StatusIncomplete) {
+		out = append(out, Problem{"statusNote", fmt.Sprintf("a version that says it is %s says what isn't done or may break, in statusNote", status)})
+	}
+	return out
+}
+
+// Unfinished says whether a version says it is experimental or incomplete: a server warns
+// before installing it, and installs it only when an administrator agrees.
+func (m *Manifest) Unfinished() bool {
+	return m.Status == StatusExperimental || m.Status == StatusIncomplete
+}
+
+// StatusOrStable is the version's status, with stable for one that says nothing.
+func (m *Manifest) StatusOrStable() string {
+	if m.Status == "" {
+		return StatusStable
+	}
+	return m.Status
 }
 
 // Asks reports whether this version asks for a permission.

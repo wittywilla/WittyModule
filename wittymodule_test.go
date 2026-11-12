@@ -72,25 +72,100 @@ func TestValidate(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, change := range map[string]func(*Manifest){
-		"max below min":   func(m *Manifest) { m.MaxServer = "0.3.x" },
-		"exact below min": func(m *Manifest) { m.MaxServer = "0.3.9" },
-		"no maximum":      func(m *Manifest) { m.MaxServer = "" },
-		"lone x":          func(m *Manifest) { m.MaxServer = "x" },
-		"bad series":      func(m *Manifest) { m.MaxServer = "0.y.x" },
-		"bad minimum":     func(m *Manifest) { m.MinServer = "soon" },
-		"bad version":     func(m *Manifest) { m.Version = "new" },
-		"bad id":          func(m *Manifest) { m.ID = "../evil" },
-		"entry with path": func(m *Manifest) { m.Entry = "../evil" },
-		"no entry":        func(m *Manifest) { m.Entry = "" },
-		"bad delivery":    func(m *Manifest) { m.Delivery = "script" },
-		"bad repo":        func(m *Manifest) { m.Repo = "https://evil.example/x" },
-		"no api":          func(m *Manifest) { m.API = 0 },
+		"max below min":       func(m *Manifest) { m.MaxServer = "0.3.x" },
+		"exact below min":     func(m *Manifest) { m.MaxServer = "0.3.9" },
+		"no maximum":          func(m *Manifest) { m.MaxServer = "" },
+		"lone x":              func(m *Manifest) { m.MaxServer = "x" },
+		"bad series":          func(m *Manifest) { m.MaxServer = "0.y.x" },
+		"bad minimum":         func(m *Manifest) { m.MinServer = "soon" },
+		"bad version":         func(m *Manifest) { m.Version = "new" },
+		"bad id":              func(m *Manifest) { m.ID = "../evil" },
+		"entry with path":     func(m *Manifest) { m.Entry = "../evil" },
+		"no entry":            func(m *Manifest) { m.Entry = "" },
+		"bad delivery":        func(m *Manifest) { m.Delivery = "script" },
+		"bad repo":            func(m *Manifest) { m.Repo = "https://evil.example/x" },
+		"no api":              func(m *Manifest) { m.API = 0 },
+		"bad status":          func(m *Manifest) { m.Status = "alpha" },
+		"unfinished, no note": func(m *Manifest) { m.Status = StatusIncomplete },
 	} {
 		m := good()
 		change(m)
 		if m.Validate() == nil {
 			t.Errorf("%s: accepted", name)
 		}
+	}
+}
+
+// A version says how finished it is, and an unfinished one says what is missing.
+func TestStatus(t *testing.T) {
+	long := strings.Repeat("é", MaxStatusNote) // 500 characters, 1000 bytes
+	for _, c := range []struct {
+		name, status, note string
+		ok, unfinished     bool
+	}{
+		{"left out is stable", "", "", true, false},
+		{"stable", StatusStable, "", true, false},
+		{"beta with no note", StatusBeta, "", true, false},
+		{"beta with a note", StatusBeta, "Settings may move.", true, false},
+		{"experimental", StatusExperimental, "Saves aren't kept yet.", true, true},
+		{"incomplete", StatusIncomplete, "No settings page yet.", true, true},
+		{"incomplete, no note", StatusIncomplete, "", false, true},
+		{"experimental, blank note", StatusExperimental, "   ", false, true},
+		{"a note of 500 characters", StatusIncomplete, long, true, true},
+		{"a note of 501 characters", StatusIncomplete, long + "x", false, true},
+		{"a line break", StatusIncomplete, "one\ntwo", false, true},
+		{"an escape", StatusIncomplete, "a\x1b[2Jb", false, true},
+		{"not UTF-8", StatusIncomplete, "a\xffb", false, true},
+		{"unknown status", "alpha", "", false, false},
+		{"wrong case", "Stable", "", false, false},
+	} {
+		m := manifest("0.8.0-alpha", "0.8.x")
+		m.Status, m.StatusNote = c.status, c.note
+		ps := m.Problems()
+		if (len(ps) == 0) != c.ok {
+			t.Errorf("%s: problems %v, want ok=%v", c.name, ps, c.ok)
+		}
+		for _, p := range ps {
+			if p.Field != "status" && p.Field != "statusNote" {
+				t.Errorf("%s: a problem in %s", c.name, p.Field)
+			}
+		}
+		if m.Unfinished() != c.unfinished {
+			t.Errorf("%s: unfinished %v", c.name, m.Unfinished())
+		}
+	}
+	if m := manifest("0.8.0-alpha", "0.8.x"); m.StatusOrStable() != StatusStable {
+		t.Errorf("no status reads as %q", m.StatusOrStable())
+	}
+	// An older server ignores the fields: a manifest with them still parses with the same shape.
+	raw := `{"id":"wittyx","name":"X","version":"0.1.0","repo":"a/b","delivery":"web","entry":"x.js","api":4,"minServer":"0.8.0-alpha","maxServer":"0.8.x","status":"incomplete","statusNote":"No settings yet."}`
+	m, err := ParseManifest([]byte(raw))
+	if err != nil || m.Status != StatusIncomplete || m.StatusNote != "No settings yet." {
+		t.Fatalf("%+v %v", m, err)
+	}
+}
+
+// Problems lists everything wrong, each where it is; Validate reports the first.
+func TestProblemsListsEverything(t *testing.T) {
+	m := manifest("0.4.0", "0.5.x")
+	m.Name, m.MaxServer, m.Permissions, m.Status = "", "0.y.x", []string{"network", "root"}, "done"
+	m.Pages = []Page{{ID: "a", Title: "A", Where: "main"}}
+	var fields []string
+	for _, p := range m.Problems() {
+		fields = append(fields, p.Field)
+		if p.Message == "" || strings.Contains(p.String(), "manifest of") {
+			t.Errorf("%q isn't one plain located line", p.String())
+		}
+	}
+	want := []string{"name", "maxServer", "permissions[1]", "pages", "status"}
+	if strings.Join(fields, " ") != strings.Join(want, " ") {
+		t.Fatalf("fields %v, want %v", fields, want)
+	}
+	if err := m.Validate(); err == nil || err.Error() != "manifest of wittyphotos: no name" {
+		t.Fatalf("Validate: %v", err)
+	}
+	if err := (&Manifest{ID: "Bad"}).Validate(); err == nil || !strings.HasPrefix(err.Error(), "manifest: ") {
+		t.Fatalf("bad id: %v", err)
 	}
 }
 
