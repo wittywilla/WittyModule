@@ -5,6 +5,7 @@ What changed in WittyModule, newest first. What changed before it had a reposito
 
 ## Unreleased
 
+- The SDUI kit follows WittyMediaServer's catalogue revision 4: `sdui.CatalogRevision` and the TypeScript kit's lists (with `Dock` and `KeyLegend`), the copies of the catalogue and schema, and the server's validator in `sdui/internal/core`, with `watchLater.remove` and `inWatchLater`. A file the kit writes says `"catalog": 4`; files made for an earlier revision are still taken.
 - The SDUI kit's copies of the server's catalogue and schema (`sdui/`, `kit/sdui/`) are WittyMediaServer 0.8.0-alpha's: the `books`, `statistics` and `liked` sources, rows for each series or author of a books library (`bookSeries`, `bookAuthors`), the layouts and theme tokens, and `topShelf` on a module's source, which offers it for Apple TV's Top Shelf (only a source with no required parameters and no `pageKinds`).
 - **The module specification**, [docs/SPEC.md](docs/SPEC.md): Specification 4.0, module API 4. Everything a module is held to, in one place, with what API 3 differs in, the server's overrides, and a change log of its own.
 - `wittymodule check` lists every problem, not just the first, one line each and located by file and field or JSON path: `module.json: maxServer: ...`, `sdui.json: /pages/0/title: ...`. The SDUI checker's warnings are printed too, and don't fail it. A module whose `status` is `experimental` or `incomplete` passes, with a warning naming its status and note.

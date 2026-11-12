@@ -18,7 +18,11 @@ test('writes sdui.json from a TypeScript definition, the same as the server\'s e
   const out = join(dir, 'sdui.json')
   const r = run('--module', 'wittyboardgames', fixture('boardgames-sdui.ts'), out)
   assert.equal(r.status, 0, r.stderr)
-  assert.deepEqual(JSON.parse(readFileSync(out, 'utf8')), JSON.parse(readFileSync(fixture('module-boardgames.json'), 'utf8')))
+  // The kit writes the revision it knows; the server's example was made for an earlier one,
+  // which the server still takes. Everything else is the same.
+  const got = JSON.parse(readFileSync(out, 'utf8')), want = JSON.parse(readFileSync(fixture('module-boardgames.json'), 'utf8'))
+  assert.equal(got.catalog, JSON.parse(readFileSync(new URL('../catalog.json', import.meta.url), 'utf8')).revision)
+  assert.deepEqual({ ...got, catalog: want.catalog }, want)
 })
 
 test('takes the module ID from module.json beside the output', () => {

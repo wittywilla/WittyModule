@@ -66,7 +66,19 @@ func TestTheKitWritesTheWorkedExample(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(canon(t, m), canon(t, boardGames())) {
+	// The kit writes the catalogue revision it knows; the server's example was made for an
+	// earlier one, which the server still takes. Everything else is the same.
+	kit := boardGames()
+	if kit.Catalog != CatalogRevision {
+		t.Errorf("the kit writes catalog %d, and knows %d", kit.Catalog, CatalogRevision)
+	}
+	kit.Catalog = m.Catalog
+	for i := range kit.Sources {
+		if i < len(m.Sources) && kit.Sources[i].Since == CatalogRevision {
+			kit.Sources[i].Since = m.Sources[i].Since
+		}
+	}
+	if !reflect.DeepEqual(canon(t, m), canon(t, kit)) {
 		a, _ := JSON(m)
 		b, _ := JSON(boardGames())
 		t.Fatalf("different:\nfile %s\nkit  %s", a, b)
