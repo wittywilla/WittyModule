@@ -24,10 +24,31 @@ import (
 // a helper and the pages a module adds to the app, and is the first API where nothing of a
 // module is compiled into the server, so it is also the oldest one a server takes: a module
 // has to be built for WittyMediaServer 0.6.0-alpha or newer.
+//
+// API 4 makes a module's SDUI part of the module: a release carries sdui.json beside its
+// manifest (package sdui; WittyMediaServer docs/SDUI-MODULES.md), which the server checks
+// against its catalogue, and a version built for API 4 without one is refused. A server
+// that takes API 4 still takes API 3, so nothing breaks until a module is upgraded.
 const (
-	API    = 3
+	API    = 4
 	MinAPI = 3
 )
+
+// SDUIFromAPI is the API from which a module must carry its SDUI, and SDUIFile its name.
+const (
+	SDUIFromAPI = 4
+	SDUIFile    = "sdui.json"
+)
+
+// NeedsSDUI reports whether a release of this version must carry sdui.json: one built for
+// SDUIFromAPI or newer that a server installs (a library reaches it inside others).
+func (m *Manifest) NeedsSDUI() bool {
+	switch m.Delivery {
+	case DeliveryHelper, DeliveryProgram, DeliveryWeb:
+		return m.API >= SDUIFromAPI
+	}
+	return false
+}
 
 // FirstServer is the first server this API is for, and what a module's minServer starts from.
 const FirstServer = "0.6.0-alpha"

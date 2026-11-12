@@ -41,6 +41,7 @@ import (
 	"time"
 
 	"github.com/wittywilla/wittymodule"
+	"github.com/wittywilla/wittymodule/sdui"
 )
 
 func main() {
@@ -201,6 +202,14 @@ func checkOne(dir, server string) error {
 			return fmt.Errorf("version %s differs from package.json's %s", m.Version, p.Version)
 		}
 	}
+	// Its SDUI: required from module API 4, checked whenever it is there.
+	if _, err := os.Stat(filepath.Join(dir, wittymodule.SDUIFile)); err == nil {
+		if _, err := sdui.ReadFile(filepath.Join(dir, wittymodule.SDUIFile), m.ID); err != nil {
+			return fmt.Errorf("%s: %w", wittymodule.SDUIFile, err)
+		}
+	} else if m.NeedsSDUI() {
+		return fmt.Errorf("it is built for module API %d, where a module carries its own SDUI, and it has no %s (see WittyMediaServer docs/SDUI-MODULES.md)", m.API, wittymodule.SDUIFile)
+	}
 	if server != "" {
 		return m.Supports(server, wittymodule.MinAPI, wittymodule.API)
 	}
@@ -313,10 +322,10 @@ func pack(dirs []string, out, targets, gcflagsFreeBSD, built, prebuilt string) e
 				files[wittymodule.NoticesFile] = b
 			}
 		}
-		for _, name := range []string{wittymodule.ManifestFile, "LICENSE", "NOTICE", "README.md"} {
+		for _, name := range []string{wittymodule.ManifestFile, "LICENSE", "NOTICE", "README.md", wittymodule.SDUIFile} {
 			if b, err := os.ReadFile(filepath.Join(dir, name)); err == nil {
 				files[name] = b
-			} else if name != "README.md" {
+			} else if name != "README.md" && (name != wittymodule.SDUIFile || m.NeedsSDUI()) {
 				return err
 			}
 		}
@@ -470,9 +479,12 @@ func packWeb(dirs []string, out, built string) error {
 			return fmt.Errorf("the built bundle has no %s, which the manifest names", m.Style)
 		}
 	}
-	for _, name := range []string{"LICENSE", "NOTICE"} {
+	for _, name := range []string{"LICENSE", "NOTICE", wittymodule.SDUIFile} {
 		b, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil {
+			if name == wittymodule.SDUIFile && !m.NeedsSDUI() {
+				continue
+			}
 			return err
 		}
 		files[name] = b
