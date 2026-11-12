@@ -148,76 +148,156 @@ func readManifest(dir string) (*wittymodule.Manifest, []byte, error) {
 	return m, b, err
 }
 
-// check: each manifest is sound and agrees with the folder around it.
+// check: each manifest is sound and agrees with the folder around it. Every problem is listed,
+// one line each, located by file and field (`module.json: maxServer: ...`) or by file and JSON
+// path (`sdui.json: /pages/0/title: ...`); warnings are listed too and don't fail it.
 func check(dirs []string, server string) error {
 	if len(dirs) == 0 {
 		return errors.New("which folders? wittymodule check <folder>...")
 	}
-	bad := 0
+	bad, count := 0, 0
 	for _, dir := range dirs {
-		if err := checkOne(dir, server); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", dir, err)
+		problems, warnings := inspect(dir, server)
+		for _, w := range warnings {
+			fmt.Fprintln(os.Stderr, "warning: "+w)
+		}
+		for _, p := range problems {
+			fmt.Fprintln(os.Stderr, p)
+		}
+		if len(problems) > 0 {
 			bad++
+			count += len(problems)
 			continue
 		}
 		fmt.Println("ok", dir)
 	}
 	if bad > 0 {
-		return fmt.Errorf("%d of %d manifests have problems", bad, len(dirs))
+		noun := "problems"
+		if count == 1 {
+			noun = "problem"
+		}
+		return fmt.Errorf("%d %s, in %d of %d folders", count, noun, bad, len(dirs))
 	}
 	return nil
 }
 
+// checkOne is check for one folder, as the error pack stops at: every problem, a line each.
 func checkOne(dir, server string) error {
-	m, _, err := readManifest(dir)
-	if err != nil {
-		return err
+	problems, _ := inspect(dir, server)
+	if len(problems) == 0 {
+		return nil
 	}
+	return errors.New(strings.Join(problems, "\n"))
+}
+
+// inspect lists what is wrong with a module's folder, and what it should be warned of.
+func inspect(dir, server string) (problems, warnings []string) {
+	manFile, uiFile := filepath.Join(dir, wittymodule.ManifestFile), filepath.Join(dir, wittymodule.SDUIFile)
+	bad := func(file, field, format string, args ...any) {
+		at := file + ": "
+		if field != "" {
+			at += field + ": "
+		}
+		problems = append(problems, at+fmt.Sprintf(format, args...))
+	}
+	raw, err := os.ReadFile(manFile)
+	if err != nil {
+		bad(manFile, "", "can't be read: %v", err)
+		return
+	}
+	var m wittymodule.Manifest
+	if err := json.Unmarshal(raw, &m); err != nil {
+		bad(manFile, "", "isn't a manifest: %v", err)
+		return
+	}
+	for _, p := range m.Problems() {
+		bad(manFile, p.Field, "%s", p.Message)
+	}
+	sound := len(problems) == 0
 	abs, err := filepath.Abs(dir)
 	if err != nil {
-		return err
+		bad(manFile, "", "%v", err)
+		return
 	}
 	// The top of a checkout can be called anything: a worktree is named for its branch.
 	if _, git := os.Stat(filepath.Join(abs, ".git")); git != nil {
 		if base := strings.ToLower(filepath.Base(abs)); base != m.ID {
-			return fmt.Errorf("the manifest says %q, in a folder named %q", m.ID, base)
+			bad(manFile, "id", "the manifest says %q, in a folder named %q", m.ID, base)
 		}
 	}
 	if m.API > wittymodule.API || m.API < wittymodule.MinAPI {
-		return fmt.Errorf("api %d is outside what this WittyModule knows (%d to %d)", m.API, wittymodule.MinAPI, wittymodule.API)
+		bad(manFile, "api", "api %d is outside what this WittyModule knows (%d to %d)", m.API, wittymodule.MinAPI, wittymodule.API)
 	}
-	if wittymodule.Compare(m.MinServer, wittymodule.FirstServer) < 0 {
-		return fmt.Errorf("minServer %s is older than %s, the first server a module can run on", m.MinServer, wittymodule.FirstServer)
+	if wittymodule.Valid(m.MinServer) && wittymodule.Compare(m.MinServer, wittymodule.FirstServer) < 0 {
+		bad(manFile, "minServer", "minServer %s is older than %s, the first server a module can run on", m.MinServer, wittymodule.FirstServer)
 	}
-	if m.PerPlatform() {
+	if m.PerPlatform() && m.Entry != "" {
 		// A program written in something other than Go brings its own build.
 		_, cmake := os.Stat(filepath.Join(dir, "CMakeLists.txt"))
 		if st, err := os.Stat(filepath.Join(dir, "cmd", m.Entry)); cmake != nil && (err != nil || !st.IsDir()) {
-			return fmt.Errorf("the helper's source, cmd/%s, is missing", m.Entry)
+			bad(manFile, "entry", "the helper's source, cmd/%s, is missing", m.Entry)
 		}
 	}
 	if b, err := os.ReadFile(filepath.Join(dir, "package.json")); err == nil {
 		var p struct{ Version string }
 		if json.Unmarshal(b, &p) == nil && p.Version != m.Version {
-			return fmt.Errorf("version %s differs from package.json's %s", m.Version, p.Version)
+			bad(manFile, "version", "version %s differs from package.json's %s", m.Version, p.Version)
 		}
 	}
 	// Its SDUI: required from module API 4, checked whenever it is there.
-	if _, err := os.Stat(filepath.Join(dir, wittymodule.SDUIFile)); err == nil {
-		ui, err := sdui.ReadFile(filepath.Join(dir, wittymodule.SDUIFile), m.ID)
+	if b, err := os.ReadFile(uiFile); err == nil {
+		ui, err := sdui.Parse(b)
 		if err != nil {
-			return fmt.Errorf("%s: %w", wittymodule.SDUIFile, err)
+			bad(uiFile, "", "%s", strings.TrimPrefix(err.Error(), wittymodule.SDUIFile+" "))
+		} else {
+			for _, is := range sdui.Check(ui, m.ID) {
+				line := is.String()
+				if is.Path == "" {
+					line = strings.TrimPrefix(line, ": ")
+				}
+				if is.Severity == "error" {
+					problems = append(problems, uiFile+": "+line)
+				} else {
+					warnings = append(warnings, uiFile+": "+line)
+				}
+			}
+			if len(ui.Sources) > 0 && m.Delivery != wittymodule.DeliveryHelper {
+				bad(uiFile, "/sources", "it has data sources, and only a helper can answer them; %s is delivered as %q", m.ID, m.Delivery)
+			}
 		}
-		if len(ui.Sources) > 0 && m.Delivery != wittymodule.DeliveryHelper {
-			return fmt.Errorf("%s has data sources, and only a helper can answer them; %s is delivered as %q", wittymodule.SDUIFile, m.ID, m.Delivery)
-		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		bad(uiFile, "", "can't be read: %v", err)
 	} else if m.NeedsSDUI() {
-		return fmt.Errorf("it is built for module API %d, where a module carries its own SDUI, and it has no %s (see WittyMediaServer docs/SDUI-MODULES.md)", m.API, wittymodule.SDUIFile)
+		bad(uiFile, "", "it is built for module API %d, where a module carries its own SDUI, and it has no %s beside %s (see WittyMediaServer docs/SDUI-MODULES.md)", m.API, wittymodule.SDUIFile, wittymodule.ManifestFile)
 	}
-	if server != "" {
-		return m.Supports(server, wittymodule.MinAPI, wittymodule.API)
+	// An unfinished version passes, and says so: a server asks an administrator before using it.
+	if m.Unfinished() && sound {
+		warnings = append(warnings, fmt.Sprintf("%s: status: this version says it is %s: %s. A server warns about it and installs it only when an administrator agrees", manFile, m.Status, strings.TrimRight(m.StatusNote, ".")))
 	}
-	return nil
+	if server != "" && sound {
+		if err := m.Supports(server, wittymodule.MinAPI, wittymodule.API); err != nil {
+			bad(manFile, rangeField(&m, server), "%v", err)
+		}
+	}
+	return problems, warnings
+}
+
+// rangeField says which field puts a server out of a version's reach.
+func rangeField(m *wittymodule.Manifest, server string) string {
+	if !wittymodule.Valid(server) {
+		return ""
+	}
+	c := *m
+	c.MinServer, c.MaxServer = "0.0.0", "999999.x"
+	if c.Supports(server, wittymodule.MinAPI, wittymodule.API) != nil {
+		return "api"
+	}
+	c = *m
+	c.MaxServer = "999999.x"
+	if c.Supports(server, wittymodule.MinAPI, wittymodule.API) != nil {
+		return "minServer"
+	}
+	return "maxServer"
 }
 
 // fixedTime is every file's date in an archive, so the same code packs the same.
