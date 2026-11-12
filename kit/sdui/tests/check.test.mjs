@@ -103,6 +103,21 @@ test('the revision 6 constructors make sections the checker accepts', () => {
   assert.deepEqual(kit.credits('cr', { type: 'credits', item: '$item' }, { parts: ['cast'] }), { id: 'cr', component: 'Credits', props: { parts: ['cast'] }, source: { type: 'credits', item: '$item' } })
 })
 
+test('revision 8: regions, slots and forms are checked as the server checks them', () => {
+  const base = () => kit.moduleUI('wittydemo', {
+    pages: [{ id: 'wittydemo', kind: 'custom', title: 'Demo', sections: [kit.form('f', [kit.section('l', 'List', { children: [kit.section('li', 'ListItem', { props: { title: 'Show friends what I play' } })] })], { op: 'wittyplay.online.set', submitLabel: 'Save' })], regions: { statusBar: [{ id: 'who', kind: 'profile', text: 'Online' }], systemDock: [{ id: 'games', label: 'Games', icon: 'game', route: '/page/wittydemo', as: 'layer' }] } }],
+    navigation: [{ id: 'wittydemo', type: 'page', page: 'wittydemo', icon: 'game' }],
+    settings: [{ id: 'wittydemo', title: 'Demo', slot: 'you.games', groups: [{ rows: [{ key: 'n', kind: 'bool', label: 'On', default: true }] }] }],
+  })
+  assert.deepEqual(kit.checkModuleUI(base(), 'wittydemo'), [])
+  const bad = base()
+  bad.pages[0].regions.statusBar[0].kind = 'banner'
+  bad.pages[0].regions.systemDock[0].route = 'page'
+  bad.settings[0].slot = 'people.profile'
+  const paths = kit.checkModuleUI(bad, 'wittydemo').map((i) => i.path)
+  for (const p of ['/pages/0/regions/statusBar/0/kind', '/pages/0/regions/systemDock/0/route', '/settings/0/admin']) assert.ok(paths.includes(p) || paths.some((x) => x.endsWith(p.replace('/pages/0', ''))), p + ' in ' + paths)
+})
+
 test('checkSetting checks a value as the server does', () => {
   assert.equal(kit.checkSetting({ key: 'n', kind: 'int', min: 1, max: 3 }, 2), '')
   assert.equal(kit.checkSetting({ key: 'n', kind: 'int', min: 1, max: 3 }, 4), 'n is between 1 and 3')

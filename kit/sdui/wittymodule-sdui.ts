@@ -65,8 +65,8 @@ export const PAGE_LIMITS = {
 export const ICONS = ['home', 'library', 'movie', 'show', 'tv', 'live', 'guide', 'record', 'music', 'album', 'artist', 'mic', 'radio', 'podcast', 'book', 'audiobook', 'comic', 'photo', 'video', 'disc', 'game', 'collection', 'list', 'folder', 'search', 'settings', 'user', 'users', 'kids', 'star', 'heart', 'clock', 'history', 'calendar', 'sparkles', 'fire', 'shuffle', 'play', 'download', 'share', 'globe', 'info', 'warning', 'check', 'plus', 'grid', 'filter', 'sort', 'plug', 'chart', 'devices', 'more'] as const
 export const CARD_STYLES = ['poster', 'landscape', 'progress', 'episode', 'square', 'album', 'circle', 'person', 'book', 'game', 'photo', 'channel', 'tile', 'plate', 'block', 'logo', 'chip'] as const
 /** The catalogue's components a page may use (the authored ones). */
-export const COMPONENTS = ['Hero', 'Shelf', 'Grid', 'Tabs', 'Tab', 'Carousel', 'CrossBar', 'WidgetGrid', 'Widget', 'NumberedRow', 'FilterBar', 'Dock', 'KeyLegend', 'DetailHeader', 'SeasonList', 'TrackList', 'Credits', 'Banner', 'Text', 'Notice', 'Divider', 'Spacer', 'Stack', 'Split', 'Button', 'Image', 'SearchBox', 'List', 'ListItem', 'NativeView'] as const
-export const SOURCES = ['continueWatching', 'nextUp', 'recommended', 'watchLater', 'liked', 'statistics', 'serverStatus', 'savedView', 'recentlyAdded', 'recentlyReleased', 'topRated', 'random', 'browse', 'genre', 'studio', 'tag', 'collection', 'collections', 'featured', 'libraries', 'genres', 'liveNow', 'recordings', 'books', 'albums', 'artists', 'continuePlaying', 'credits', 'filmography', 'episodes', 'tracks', 'similar', 'search'] as const
+export const COMPONENTS = ['Hero', 'Shelf', 'Grid', 'Tabs', 'Tab', 'Carousel', 'CrossBar', 'WidgetGrid', 'Widget', 'NumberedRow', 'FilterBar', 'Dock', 'KeyLegend', 'DetailHeader', 'SeasonList', 'TrackList', 'Credits', 'Banner', 'Text', 'Notice', 'Divider', 'Spacer', 'Stack', 'Split', 'Button', 'Image', 'SearchBox', 'List', 'ListItem', 'Form', 'NativeView'] as const
+export const SOURCES = ['continueWatching', 'nextUp', 'recommended', 'watchLater', 'liked', 'statistics', 'serverStatus', 'savedView', 'recentlyAdded', 'recentlyReleased', 'topRated', 'random', 'browse', 'genre', 'studio', 'tag', 'collection', 'collections', 'featured', 'libraries', 'genres', 'liveNow', 'recordings', 'books', 'albums', 'artists', 'continuePlaying', 'credits', 'filmography', 'episodes', 'tracks', 'similar', 'versions', 'listsFor', 'newList', 'devices', 'year', 'activity', 'notices', 'search'] as const
 export const PAGE_KINDS = ['home', 'libraries', 'library', 'detail', 'search', 'livetv', 'music', 'photos', 'books', 'games', 'collections', 'custom'] as const
 export const FORM_FACTORS = ['tv', 'phone', 'tablet', 'desktop', 'web', 'headset'] as const
 export const PLATFORMS = ['web', 'tvos', 'ios', 'android', 'androidtv', 'desktop', 'visionos', 'quest'] as const
@@ -76,7 +76,7 @@ export const MEDIA_KINDS = ['movie', 'show', 'episode', 'video', 'disc', 'album'
 export const PLACEMENTS = ['primary', 'more', 'end', 'hidden'] as const
 export const REPEATS = ['libraries', 'pinnedViews', 'collections', 'bookSeries', 'bookAuthors', 'personParts'] as const
 /** The catalogue's commands: what a `command` action's `op` may be. */
-export const COMMANDS = ['watchLater.add', 'watchLater.remove', 'watched.set', 'watched.clear', 'selectTab', 'control.open', 'wittyplay.room.create', 'wittyplay.room.join', 'wittyplay.room.invite', 'wittyplay.state.save', 'wittyplay.state.load', 'wittyplay.state.delete', 'wittyplay.controller.assign', 'rewind.open', 'controller.remap', 'refresh'] as const
+export const COMMANDS = ['watchLater.add', 'watchLater.remove', 'watched.set', 'watched.clear', 'selectTab', 'control.open', 'wittyplay.room.create', 'wittyplay.room.join', 'wittyplay.room.invite', 'wittyplay.state.save', 'wittyplay.state.load', 'wittyplay.state.delete', 'wittyplay.controller.assign', 'wittyplay.room.close', 'wittyplay.online.set', 'wittyplay.online.share', 'wittyplay.online.appear', 'wittyplay.kids.friends', 'wittyplay.screenshot.keep', 'wittyplay.memory.delete', 'collection.add', 'collection.remove', 'collection.create', 'session.end', 'sessions.endOthers', 'history.clear', 'rewind.open', 'controller.remap', 'refresh'] as const
 export const PERSONAL_KINDS = ['reorder', 'hide', 'pin', 'density', 'cardSize', 'defaultTab'] as const
 /** The views every app may know for a NativeView; a module adds its own. */
 export const NATIVE_VIEWS = ['guide', 'photoTimeline', 'photoMap', 'coverFlow'] as const
@@ -263,6 +263,33 @@ export interface Page {
   variants?: Variant[]
   personal?: PersonalPolicy
   ttlSeconds?: number
+  /** What the page puts into the shell's own regions while it is shown (revision 8). */
+  regions?: PageRegions
+}
+
+/** A page's contribution to the shell: the status bar's extra items and the system dock (revision 8). */
+export interface PageRegions {
+  statusBar?: StatusItem[]
+  systemDock?: DockEntry[]
+}
+
+export const STATUS_KINDS = ['profile', 'server', 'text'] as const
+export type StatusKind = (typeof STATUS_KINDS)[number]
+
+/** One thing in the status bar: the profile (with `text` as the line under the name), the server's name, or text alone. */
+export interface StatusItem {
+  id: string
+  kind: StatusKind
+  text?: string
+}
+
+/** One destination of the system dock: a round button; `as: 'layer'` shows its page over the screen. */
+export interface DockEntry {
+  id: string
+  label: string
+  icon: Icon
+  route: string
+  as?: 'layer'
 }
 
 /** One entry of the main menu. A module's entries open its pages or a route. */
@@ -405,8 +432,13 @@ export interface SettingsPage {
   icon?: Icon
   /** Shown only to administrators; then it holds no profile settings. */
   admin?: boolean
+  /** A place of the hand-built Settings it also appears in: `you.games`, or `people.profile` (administrators only, so `admin` must be true). */
+  slot?: SettingsSlot
   groups: SettingsGroup[]
 }
+
+export const SETTINGS_SLOTS = ['you.games', 'people.profile'] as const
+export type SettingsSlot = (typeof SETTINGS_SLOTS)[number]
 
 /** A module's SDUI file, sdui.json. */
 export interface ModuleUI {
@@ -473,6 +505,12 @@ export interface ShelfProps {
   numbered?: boolean
   /** Let the next card show at the edge, so a row is known to scroll. */
   peek?: boolean
+  /** The focused card grows (revision 8). */
+  focusGrow?: boolean
+  /** Show the focused item's detail panel, with its `actions` (revision 8). */
+  detail?: boolean
+  /** The row takes focus as a whole (revision 8). */
+  focusable?: boolean
   maxItems?: number
   empty?: Empty
   emptyText?: string
@@ -520,6 +558,34 @@ export interface WidgetProps {
   h?: number
 }
 
+/** A list of rows, each a `ListItem` or filled from a source (revision 8: `focusable`). */
+export interface ListProps {
+  title?: string
+  headingStyle?: HeadingStyle
+  dense?: boolean
+  focusable?: boolean
+  empty?: Empty
+  emptyText?: string
+}
+
+/** A group of list rows with controls, submitted together as one command (revision 8). `op` is the command, `item` its item; each control's `name` is the key its value goes under in the command's params. */
+export interface FormProps {
+  title?: string
+  submitLabel?: string
+  cancelLabel?: string
+  op?: CatalogCommandOp | string
+  item?: string
+}
+
+/** What a Button, Notice or ListItem does besides opening a place: a command with its item and params (a bool, int or ints param as a JSON value), a question asked first, going back. */
+export interface ActionProps {
+  op?: CatalogCommandOp | string
+  item?: string
+  params?: Record<string, unknown>
+  confirm?: string
+  back?: boolean
+}
+
 export interface CreditsProps {
   title?: string
   parts?: Array<'cast' | 'guests' | 'crew'>
@@ -540,19 +606,85 @@ export interface PersonItem {
   kind: 'person'
   title: string
   subtitle?: string
+  /** Presence as badge text: Playing and Online draw a green dot on the avatar, Away amber, Offline muted (the person card style's `badgeTones`). */
   badges?: string[]
   images?: { square?: string; poster?: string }
   icon?: Icon
   route?: string
   scope?: string
+  /** What activating the row does instead of opening `route`; `trailing` is the text at its end; `control` a switch, choice, field or slider in the row (revision 8). */
+  action?: ItemActionTarget
+  trailing?: string
+  control?: Control
+  /** The buttons of a Shelf's detail panel while the item has focus. */
+  actions?: ItemAction[]
 }
 
-/** A value a catalogue command takes besides the action's item. */
+/** A value a catalogue command takes besides the action's item. `bool` and `int`/`ints` params are written as JSON numbers and booleans, not strings. */
 export interface CommandParam {
   name: string
-  type: 'string' | 'int'
+  type: 'string' | 'int' | 'bool' | 'ints'
   label: string
   required?: boolean
+}
+
+/** A catalogue command as `GET /api/sdui/catalog` lists it. `module` is the module a command belongs to: a module's own action may use only its own commands (`module` is its ID, or the `op` starts with `<module>.`). */
+export interface CommandSpec {
+  op: CatalogCommandOp | string
+  label: string
+  description: string
+  method: string
+  path: string
+  body?: string
+  params?: CommandParam[]
+  module?: string
+}
+
+/** An action an item or a Button carries (revision 8: `as`, `confirm`). */
+export interface ItemActionTarget {
+  type: 'navigate' | 'play' | 'native' | 'external' | 'back' | 'command'
+  to?: string
+  item?: string
+  url?: string
+  op?: CatalogCommandOp | string
+  params?: Record<string, unknown>
+  /** `layer`: a navigate action's page is shown over the screen (a sheet) instead of replacing it. */
+  as?: 'layer'
+  /** A question asked before a command is carried out, with the command's label as the confirming button. */
+  confirm?: string
+}
+
+export const GLYPHS = ['a', 'b', 'x', 'y'] as const
+export type Glyph = (typeof GLYPHS)[number]
+
+/** One button of an item's detail panel (a Shelf with `detail`), first the A action. */
+export interface ItemAction {
+  id: string
+  label: string
+  /** The key it is drawn with: A selects, B goes back, X and Y are the secondary and options keys. */
+  glyph?: Glyph
+  action: ItemActionTarget
+}
+
+export const CONTROL_TYPES = ['switch', 'select', 'field', 'slider'] as const
+export type ControlType = (typeof CONTROL_TYPES)[number]
+
+/** A control drawn in a list row, so a page can hold settings-like rows (Settings itself stays hand-built). A switch's `value` is a boolean and flipping it runs the row's action; a select's and a field's a string; a slider's a number. `name` is the key its value goes under inside a Form. */
+export interface Control {
+  type: ControlType
+  name?: string
+  value?: boolean | string | number
+  options?: EnumOption[]
+  min?: number
+  max?: number
+  step?: number
+  unit?: string
+  placeholder?: string
+  maxLength?: number
+  multiline?: boolean
+  input?: 'text' | 'number' | 'url' | 'search'
+  disabled?: boolean
+  why?: string
 }
 
 /**
@@ -568,6 +700,7 @@ export interface CommandAction {
 
 export interface GridProps {
   title?: string
+  focusable?: boolean
   cardStyle?: 'auto' | CardStyle
   cardSize?: CardSize
   showTitles?: boolean
@@ -653,6 +786,11 @@ export function carousel(id: string, source: Source, props?: CarouselProps, extr
 /** A ranked row with big numbers. */
 export function numberedRow(id: string, source: Source, props?: NumberedRowProps, extras?: SectionExtras): Section {
   return made(id, 'NumberedRow', props, source, extras)
+}
+
+/** A form: list rows with controls and a submit button. Children are List, Text, Notice, Divider or Spacer sections. */
+export function form(id: string, children: Section[], props?: FormProps, extras?: SectionExtras): Section {
+  return made(id, 'Form', props, undefined, extras, children)
 }
 
 /** A title's cast and crew, from a `credits` source. */
@@ -1050,6 +1188,7 @@ class Checker {
     if ((p.description ?? '').length > 500) this.err('/description', 'Shorten it.', 'a description is at most 500 characters')
     if (p.scope && !scopePattern.test(p.scope)) this.err('/scope', 'Use a module\'s ID such as wittymusic, or a name of your own in lower case.', `${q(p.scope)} is not a theme scope`)
     if ((p.ttlSeconds ?? 0) < 0 || (p.ttlSeconds ?? 0) > 86400) this.err('/ttlSeconds', 'Use 0 for the default.', 'ttlSeconds is between 0 and 86400')
+    this.regions(p.regions)
     const m = p.match
     if (isObj(m) && kind) {
       for (const field of ['library', 'libraryKind', 'mediaKind']) {
@@ -1175,6 +1314,33 @@ class Checker {
       if (s.component === 'Stack' && propStr(s.props, 'direction', 'column') === 'row') child = 'Stack:row'
       this.sections(children, sp + '/children', depth + 1, child, ids, grids)
     }
+  }
+
+  /** What a page puts into the shell's regions (revision 8). */
+  regions(r: any) {
+    if (!isObj(r)) return
+    const bar = list(r.statusBar)
+    const dock = list(r.systemDock)
+    if (bar.length > 6) this.err('/regions/statusBar', 'Keep six or fewer.', 'the status bar holds at most 6 items')
+    if (dock.length > 7) this.err('/regions/systemDock', 'Keep seven or fewer.', 'the system dock holds at most 7 entries')
+    let seen = new Set<string>()
+    bar.forEach((it: any, i) => {
+      const p = `/regions/statusBar/${i}`
+      if (!idPattern.test(it?.id ?? '') || seen.has(it.id)) this.err(p + '/id', 'Give each item its own short ID.', "an item's ID is lower-case letters, digits, - and _, and each is used once")
+      seen.add(it?.id)
+      if (!contains(STATUS_KINDS, it?.kind)) this.err(p + '/kind', 'Use ' + STATUS_KINDS.join(', ') + '.', `${q(it?.kind)} is not a kind of status item`)
+      if (runes(it?.text ?? '') > 80) this.err(p + '/text', 'Shorten it.', "a status item's text is at most 80 characters")
+    })
+    seen = new Set<string>()
+    dock.forEach((d: any, i) => {
+      const p = `/regions/systemDock/${i}`
+      if (!idPattern.test(d?.id ?? '') || seen.has(d.id)) this.err(p + '/id', 'Give each entry its own short ID.', "an entry's ID is lower-case letters, digits, - and _, and each is used once")
+      seen.add(d?.id)
+      if (!isStr(d?.label) || d.label.trim() === '' || runes(d.label) > 24) this.err(p + '/label', 'Use one or two short words.', 'an entry needs a label of at most 24 characters')
+      if (!contains(cat.icons, d?.icon)) this.err(p + '/icon', suggest(d?.icon, cat.icons), `${q(d?.icon)} is not one of the built-in icons`)
+      if (!isStr(d?.route) || !d.route.startsWith('/')) this.err(p + '/route', 'Use a place in the app such as /page/online.', 'an entry opens a route')
+      if (d?.as !== undefined && d.as !== '' && d.as !== 'layer') this.err(p + '/as', 'Use layer, or leave it out.', `${q(d.as)} is not a way to show a page`)
+    })
   }
 
   repeat(s: any, sp: string, depth: number) {
@@ -1701,6 +1867,10 @@ export function checkModuleUI(input: unknown, moduleId?: string): Issue[] {
     name(p + '/id', 'settings', sp.id)
     v.specText(p, sp.title, '')
     if (sp.icon && !contains(cat.icons, sp.icon)) v.err(p + '/icon', suggest(sp.icon, cat.icons), `${q(sp.icon)} is not one of the built-in icons`)
+    if (sp.slot) {
+      if (!contains(SETTINGS_SLOTS, sp.slot)) v.err(p + '/slot', 'Use you.games or people.profile.', `${q(sp.slot)} is not a place settings pages can go`)
+      else if (sp.slot === 'people.profile' && !sp.admin) v.err(p + '/admin', 'Set admin to true.', `the ${sp.slot} slot is for administrators, so the page must be an admin page`)
+    }
     let rows = 0
     list(sp.groups).forEach((grp: any, g) => {
       const gp = `${p}/groups/${g}`
