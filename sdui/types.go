@@ -49,6 +49,9 @@ type Page struct {
 	// TTLSeconds suggests how long a client may show the page before asking
 	// again. 0: the default for the page's kind.
 	TTLSeconds int `json:"ttlSeconds,omitempty"`
+	// Regions are what the page puts into the shell's own regions (the status bar, the system
+	// dock) while it, or its theme scope, is showing.
+	Regions *PageRegions `json:"regions,omitempty"`
 }
 
 // Match narrows a page. Zero fields match anything.
@@ -427,7 +430,11 @@ type SettingsPage struct {
 	Title string `json:"title"`
 	Icon  string `json:"icon,omitempty"`
 	// Admin pages are shown only to administrators.
-	Admin  bool            `json:"admin,omitempty"`
+	Admin bool `json:"admin,omitempty"`
+	// Slot puts the page into a place of the hand-built Settings: "you.games" (You, Games) or
+	// "people.profile" (Settings, People, a profile; administrators only, so the page must be
+	// Admin). See SettingsSlots.
+	Slot   string          `json:"slot,omitempty"`
 	Groups []SettingsGroup `json:"groups"`
 }
 

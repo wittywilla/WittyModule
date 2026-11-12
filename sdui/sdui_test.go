@@ -188,3 +188,37 @@ func TestSummary(t *testing.T) {
 		t.Fatalf("%s %v", b, err)
 	}
 }
+
+// A page's regions and a settings page's slot are written as the server reads them, and pass its
+// checks: what a module needs to put its own status bar and dock up while its page shows, and to
+// put a settings page into You or People.
+func TestRegionsAndSlots(t *testing.T) {
+	m := New("wittyboardgames", "Board games")
+	m.AddPage(Page{ID: "wittyboardgames", Kind: "custom", Title: "Board games", Sections: []Section{Notice("hello", "info", "Hello.")},
+		Regions: &PageRegions{
+			StatusBar:  []StatusItem{{ID: "me", Kind: "profile", Text: "Board games"}, {ID: "server", Kind: "server"}},
+			SystemDock: []DockEntry{{ID: "home", Label: "Games", Icon: "game", Route: "/page/wittyboardgames"}, {ID: "rules", Label: "Rules", Icon: "book", Route: "/page/wittyboardgames", As: "layer"}},
+		}})
+	m.AddSettings(SettingsPage{ID: "wittyboardgames", Title: "Board games", Slot: "you.games", Groups: []SettingsGroup{
+		{Rows: []SettingRow{{Key: "showScores", Kind: "bool", Scope: "profile", Label: "Show scores", Default: true}}}}})
+	for _, is := range Check(m, "") {
+		if is.Severity == "error" {
+			t.Errorf("%s: %s", is.Path, is.Message)
+		}
+	}
+	b, _ := json.Marshal(m)
+	for _, want := range []string{`"regions":{"statusBar":[`, `"systemDock":[`, `"as":"layer"`, `"slot":"you.games"`} {
+		if !strings.Contains(string(b), want) {
+			t.Errorf("%s missing from %s", want, b)
+		}
+	}
+	// A slot for administrators only needs an administrators' page.
+	m.Settings[0].Slot = "people.profile"
+	bad := false
+	for _, is := range Check(m, "") {
+		bad = bad || is.Severity == "error"
+	}
+	if !bad {
+		t.Error("people.profile on a page anyone sees passed")
+	}
+}
