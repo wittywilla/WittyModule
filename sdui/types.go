@@ -52,6 +52,10 @@ type Page struct {
 	// Regions are what the page puts into the shell's own regions (the status bar, the system
 	// dock) while it, or its theme scope, is showing.
 	Regions *PageRegions `json:"regions,omitempty"`
+	// Slot puts a custom page into a place of the hand-built Settings, as a settings page's slot
+	// does: "you.games" (You, Games) or "people.profile" (Settings, People, a profile, for
+	// administrators; the page is opened about the profile, as item). See SettingsSlots.
+	Slot string `json:"slot,omitempty"`
 }
 
 // Match narrows a page. Zero fields match anything.

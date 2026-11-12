@@ -212,6 +212,25 @@ func TestRegionsAndSlots(t *testing.T) {
 			t.Errorf("%s missing from %s", want, b)
 		}
 	}
+	// A custom page in a slot, opened about a profile in People.
+	m.AddPage(Page{ID: "wittyboardgames-kids", Kind: "custom", Title: "Who plays", Slot: "people.profile", Sections: []Section{Notice("who", "info", "Who plays.")}})
+	for _, is := range Check(m, "") {
+		if is.Severity == "error" {
+			t.Errorf("a page in a slot: %s: %s", is.Path, is.Message)
+		}
+	}
+	if b, _ := json.Marshal(m.Pages[1]); !strings.Contains(string(b), `"slot":"people.profile"`) {
+		t.Errorf("a page's slot isn't written: %s", b)
+	}
+	m.Pages[1].Slot = "nowhere"
+	unknown := false
+	for _, is := range Check(m, "") {
+		unknown = unknown || is.Severity == "error"
+	}
+	if !unknown {
+		t.Error("a page in a slot that doesn't exist passed")
+	}
+	m.Pages = m.Pages[:1]
 	// A slot for administrators only needs an administrators' page.
 	m.Settings[0].Slot = "people.profile"
 	bad := false
