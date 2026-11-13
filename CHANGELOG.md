@@ -5,6 +5,8 @@ What changed in WittyModule, newest first. What changed before it had a reposito
 
 ## Unreleased
 
+- The SDUI kit's last sync for revision 8: `emptyHint` and `emptyAction` on Shelf, Grid and List (`EmptyAction`, checked as the server checks it), the `library.scan` and the other new commands, the `object` command parameter type, and the new sources. The core, `catalog.json` and the schema are the server's head.
+
 - The SDUI kit follows the server's additions to revision 8: the `QR` component (`qr`, `QRProps`) and an item's `link`, a custom page's `slot` (checked), the `formats` source and the other new sources, a page-level `FilterBar` (`FilterBarProps`: `target` optional, `reading`, `format` and `minRating` fields) and the `wittyplay.room.leave` command.
 
 - The SDUI kit follows WittyMediaServer's catalogue revision 8: `sdui/internal/core`, `catalog.json`, the schema and `sdui.CatalogRevision`, and the TypeScript kit: `Form` (and `form`), list rows with controls (`Control`: switch, select, field, slider), `ItemAction` with glyphs, an action's `as: 'layer'` and `confirm`, a page's `regions` (status bar items, the system dock; checked), settings pages' `slot` (`you.games`, `people.profile`; checked), command params of type `bool` and `ints`, `CommandSpec.module`, the `person` card's presence badges, `focusGrow`, `detail` and `focusable`, and the visualizer's `speedPct` and `colour` (`effect` or `theme`) controls in the catalogue's music table.

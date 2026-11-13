@@ -128,6 +128,16 @@ test('revision 8 additions: a QR section, a page slot, a page-level filter bar',
   assert.ok(kit.checkModuleUI(ui, 'wittydemo').some((i) => i.path === '/pages/0/slot'))
 })
 
+test('an empty section\'s button is checked as the server checks it', () => {
+  const ui = (a) => kit.moduleUI('wittydemo', {
+    pages: [{ id: 'wittydemo', kind: 'custom', title: 'Demo', sections: [kit.shelf('s', { type: 'continueWatching' }, { emptyHint: 'Add a library first.', emptyAction: a })] }],
+    navigation: [{ id: 'wittydemo', type: 'page', page: 'wittydemo', icon: 'home' }],
+  })
+  assert.deepEqual(kit.checkModuleUI(ui({ label: 'Add a library', native: 'settings', when: { admin: true } }), 'wittydemo').filter((i) => i.severity === 'error'), [])
+  const bad = kit.checkModuleUI(ui({ label: '', to: '/page/x', op: 'library.scan' }), 'wittydemo').map((i) => i.path)
+  assert.ok(bad.some((p) => p.endsWith('/emptyAction/label')) && bad.some((p) => p.endsWith('/emptyAction')), bad.join())
+})
+
 test('checkSetting checks a value as the server does', () => {
   assert.equal(kit.checkSetting({ key: 'n', kind: 'int', min: 1, max: 3 }, 2), '')
   assert.equal(kit.checkSetting({ key: 'n', kind: 'int', min: 1, max: 3 }, 4), 'n is between 1 and 3')

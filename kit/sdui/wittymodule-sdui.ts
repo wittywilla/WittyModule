@@ -76,7 +76,7 @@ export const MEDIA_KINDS = ['movie', 'show', 'episode', 'video', 'disc', 'album'
 export const PLACEMENTS = ['primary', 'more', 'end', 'hidden'] as const
 export const REPEATS = ['libraries', 'pinnedViews', 'collections', 'bookSeries', 'bookAuthors', 'personParts'] as const
 /** The catalogue's commands: what a `command` action's `op` may be. */
-export const COMMANDS = ['watchLater.add', 'watchLater.remove', 'watched.set', 'watched.clear', 'selectTab', 'control.open', 'disc.choose', 'disc.clearChoice', 'disc.rank', 'disc.compare', 'wittyplay.room.create', 'wittyplay.room.join', 'wittyplay.room.invite', 'wittyplay.state.save', 'wittyplay.state.load', 'wittyplay.state.delete', 'wittyplay.controller.assign', 'wittyplay.room.leave', 'wittyplay.room.close', 'wittyplay.online.set', 'wittyplay.online.share', 'wittyplay.online.appear', 'wittyplay.kids.friends', 'wittyplay.screenshot.keep', 'wittyplay.memory.delete', 'collection.createSmart', 'creator.subscribe', 'comment.add', 'comment.delete', 'collection.add', 'collection.remove', 'collection.create', 'session.end', 'sessions.endOthers', 'history.clear', 'rewind.open', 'controller.remap', 'refresh'] as const
+export const COMMANDS = ['watchLater.add', 'watchLater.remove', 'watched.set', 'watched.clear', 'selectTab', 'control.open', 'disc.choose', 'disc.clearChoice', 'disc.rank', 'disc.compare', 'wittyplay.room.create', 'wittyplay.room.join', 'wittyplay.room.invite', 'wittyplay.state.save', 'wittyplay.state.load', 'wittyplay.state.delete', 'wittyplay.controller.assign', 'wittyplay.room.leave', 'wittyplay.room.close', 'wittyplay.online.set', 'wittyplay.online.share', 'wittyplay.online.appear', 'wittyplay.kids.friends', 'wittyplay.screenshot.keep', 'wittyplay.memory.delete', 'collection.createSmart', 'creator.subscribe', 'comment.add', 'comment.delete', 'library.scan', 'collection.add', 'collection.remove', 'collection.create', 'session.end', 'sessions.endOthers', 'history.clear', 'rewind.open', 'controller.remap', 'refresh'] as const
 export const PERSONAL_KINDS = ['reorder', 'hide', 'pin', 'density', 'cardSize', 'defaultTab'] as const
 /** The views every app may know for a NativeView; a module adds its own. */
 export const NATIVE_VIEWS = ['guide', 'photoTimeline', 'photoMap', 'coverFlow'] as const
@@ -514,6 +514,23 @@ export interface ShelfProps {
   maxItems?: number
   empty?: Empty
   emptyText?: string
+  /** A line under the message of an empty section saying what to do (revision 8). */
+  emptyHint?: string
+  /** A button an empty section offers (revision 8). */
+  emptyAction?: EmptyAction
+}
+
+/** The button of an empty section: a label and exactly one place to go (`to` a route, `native` a screen) or command to run (`op`, with `item`, `params`, `confirm`); `as: 'layer'` shows the page over the screen; `when` shows it only to those the condition holds for (for example `{admin: true}`). */
+export interface EmptyAction {
+  label: string
+  to?: string
+  native?: NavScreen
+  op?: CatalogCommandOp | string
+  item?: string
+  params?: Record<string, unknown>
+  confirm?: string
+  as?: 'layer'
+  when?: Condition
 }
 
 /** A row that scrolls one card at a time, with no See all (catalogue revision 6). */
@@ -566,6 +583,8 @@ export interface ListProps {
   focusable?: boolean
   empty?: Empty
   emptyText?: string
+  emptyHint?: string
+  emptyAction?: EmptyAction
 }
 
 /** A group of list rows with controls, submitted together as one command (revision 8). `op` is the command, `item` its item; each control's `name` is the key its value goes under in the command's params. */
@@ -640,7 +659,7 @@ export interface PersonItem {
 /** A value a catalogue command takes besides the action's item. `bool` and `int`/`ints` params are written as JSON numbers and booleans, not strings. */
 export interface CommandParam {
   name: string
-  type: 'string' | 'int' | 'bool' | 'ints'
+  type: 'string' | 'int' | 'bool' | 'ints' | 'object'
   label: string
   required?: boolean
 }
@@ -724,6 +743,8 @@ export interface GridProps {
   maxItems?: number
   empty?: Empty
   emptyText?: string
+  emptyHint?: string
+  emptyAction?: EmptyAction
 }
 
 export interface HeroProps {
@@ -1304,6 +1325,7 @@ class Checker {
         continue
       }
       if (s.component === 'Grid') grids.set(s.id, s)
+      if (isObj(s.props) && 'emptyAction' in s.props) this.emptyAction(s.props.emptyAction, sp + '/props/emptyAction')
       if ((s.component === 'Tab') !== (parent === 'Tabs' || parent === 'CrossBar')) {
         if (s.component === 'Tab') this.err(sp + '/component', 'Put the Tab inside a Tabs section.', 'a Tab belongs inside Tabs or a CrossBar')
         else this.err(sp + '/component', 'Wrap it in a Tab.', `Tabs and a CrossBar hold only Tab sections, not ${s.component}`)
@@ -1341,6 +1363,17 @@ class Checker {
       if (s.component === 'Stack' && propStr(s.props, 'direction', 'column') === 'row') child = 'Stack:row'
       this.sections(children, sp + '/children', depth + 1, child, ids, grids)
     }
+  }
+
+  /** The button an empty section offers: a label and exactly one place to go or command to run. */
+  emptyAction(a: any, path: string) {
+    if (!isObj(a)) { this.err(path, 'Write {"label": "Add a library", "native": "settings"}.', 'emptyAction is an object with a label and where it leads'); return }
+    if (!isStr(a.label) || a.label.trim() === '' || runes(a.label) > 40) this.err(path + '/label', 'Give the button a label of at most 40 characters.', 'the button needs a label')
+    const n = ['to', 'native', 'op'].filter((k) => isStr(a[k]) && a[k] !== '').length
+    if (n !== 1) this.err(path, 'Keep one of to, native and op.', `the button leads to one place or runs one command, not ${n}`)
+    if (isStr(a.to) && a.to !== '' && !validRoute(a.to)) this.err(path + '/to', 'Use a place in the app beginning with one /.', `${q(a.to)} is not a place in the app`)
+    if (isStr(a.op) && a.op !== '' && !contains(COMMANDS, a.op)) this.err(path + '/op', 'Use one of the catalogue\'s commands.', `${q(a.op)} is not a command`)
+    if ('when' in a && !isObj(a.when)) this.err(path + '/when', 'Write a condition such as {"admin": true}.', 'when is a condition')
   }
 
   /** What a page puts into the shell's regions (revision 8). */
