@@ -5,6 +5,10 @@ What changed in WittyModule, newest first. What changed before it had a reposito
 
 ## Unreleased
 
+## 0.4.0
+
+Module API 4 and the SDUI kit at catalogue revision 8, for WittyMediaServer 0.6.0-alpha to 0.8.x. (0.3.0, published 2026-11-02, is module API 3: everything built for 0.8.0-alpha needs this version.)
+
 - The SDUI kit's last sync for revision 8: `emptyHint` and `emptyAction` on Shelf, Grid and List (`EmptyAction`, checked as the server checks it), the `library.scan` and the other new commands, the `object` command parameter type, and the new sources. The core, `catalog.json` and the schema are the server's head.
 
 - The SDUI kit follows the server's additions to revision 8: the `QR` component (`qr`, `QRProps`) and an item's `link`, a custom page's `slot` (checked), the `formats` source and the other new sources, a page-level `FilterBar` (`FilterBarProps`: `target` optional, `reading`, `format` and `minRating` fields) and the `wittyplay.room.leave` command.
