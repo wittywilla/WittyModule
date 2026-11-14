@@ -281,6 +281,57 @@ type Session struct {
 	User  int64  `json:"user"`
 	Item  int64  `json:"item,omitempty"`
 	Title string `json:"title,omitempty"`
+	// SignIn is the request's X-Witty-SignIn (service.Identity.SignIn): the sign-in that started
+	// it, so that signing out there ends it. Opaque; empty for none.
+	SignIn string `json:"signIn,omitempty"`
+}
+
+// EventSessionStop is the event the server sends when it ends a session a module started: its
+// person signed out or was deleted, their screen time ran out, or games were turned off for them.
+// Data is SessionStop. The module stops it (the server has already let it go).
+const EventSessionStop = "session.stop"
+
+// SessionStop says which session the server ended, and why: signed-out, time-up, feature-off, gone.
+type SessionStop struct {
+	ID     string `json:"id"`
+	User   int64  `json:"user"`
+	Reason string `json:"reason"`
+}
+
+// User is an account on the server, as a module may know it: for showing names, and for a
+// module's own lists of people (friends, who's online).
+type User struct {
+	ID          int64  `json:"id"`
+	Name        string `json:"name"`
+	DisplayName string `json:"displayName,omitempty"`
+	Kind        string `json:"kind"` // adult, kids, guest
+	Admin       bool   `json:"admin,omitempty"`
+	LastSeen    int64  `json:"lastSeen,omitempty"` // Unix seconds a sign-in of theirs was last used; 0 for none
+}
+
+// Users is every account on the server.
+func (c *Client) Users(ctx context.Context) ([]User, error) {
+	var out struct {
+		Users []User `json:"users"`
+	}
+	return out.Users, c.Do(ctx, On{}, "GET", "/users", nil, &out)
+}
+
+// Tools is the server's FFmpeg, and which encoders it found working.
+type Tools struct {
+	FFmpeg   string          `json:"ffmpeg"`
+	FFprobe  string          `json:"ffprobe"`
+	Version  string          `json:"version,omitempty"`
+	Encoders map[string]bool `json:"encoders"`
+	// Hardware is the hardware encoders' test, once it has finished (HardwareDone).
+	Hardware     []json.RawMessage `json:"hardware,omitempty"`
+	HardwareDone bool              `json:"hardwareDone"`
+}
+
+// Tools asks for the server's FFmpeg.
+func (c *Client) Tools(ctx context.Context) (Tools, error) {
+	var t Tools
+	return t, c.Do(ctx, On{}, "GET", "/tools", nil, &t)
 }
 
 // StartSession tells the server something live started; it counts it for metrics, screen time
