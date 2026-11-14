@@ -335,6 +335,19 @@ func (c *Client) PutImage(ctx context.Context, item int64, role string, img io.R
 	return out.URL, err
 }
 
+// SetItem sets an item's generic fields from what the module found out about it after a scan
+// (scan hooks, wittymodule.ScanPart): only an item in a library of a kind the module scans. A
+// field a person typed stays as they typed it.
+func (c *Client) SetItem(ctx context.Context, f wittymodule.ItemFields) error {
+	return c.Do(ctx, On{}, "PATCH", "/items/"+strconv.FormatInt(f.ID, 10), f, nil)
+}
+
+// Rescan asks the server to scan a library of a kind the module scans, as soon as it can: after
+// a person decided what a file is, say.
+func (c *Client) Rescan(ctx context.Context, library int64) error {
+	return c.Do(ctx, On{}, "POST", "/libraries/"+strconv.FormatInt(library, 10)+"/scan", nil, nil)
+}
+
 // Session is something live: a game being played, a stream being watched.
 type Session struct {
 	ID    string `json:"id,omitempty"` // the server's

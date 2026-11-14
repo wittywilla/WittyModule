@@ -75,6 +75,46 @@ type Config struct {
 	// Lifecycle answers the lifecycle calls its integration.json says it answers
 	// (wittymodule.CallInstall and the rest). An error rolls the install or upgrade back.
 	Lifecycle func(ctx context.Context, call string, args wittymodule.LifecycleArgs) error
+	// Scan answers the scan hooks its integration.json's scan part says it answers. They are
+	// calls on the service (Call), so they can overlap and end when the server stops a scan.
+	Scan *ScanHooks
+}
+
+// ScanHooks answer a server's scan of a library of a kind the module owns (wittymodule.ScanPart).
+type ScanHooks struct {
+	Choices  func(ctx context.Context, a wittymodule.ScanChoicesArgs) (wittymodule.ScanChoices, error)
+	Identify func(ctx context.Context, a wittymodule.ScanIdentifyArgs) (wittymodule.ScanIdentified, error)
+	Describe func(ctx context.Context, a wittymodule.ScanDescribeArgs) (wittymodule.ScanDescribed, error)
+}
+
+// handlers adds the scan hooks to a service's calls.
+func (h *ScanHooks) handlers(to map[string]Handler) {
+	if h == nil {
+		return
+	}
+	if h.Choices != nil {
+		to[wittymodule.CallScanChoices] = scanHandler(h.Choices)
+	}
+	if h.Identify != nil {
+		to[wittymodule.CallScanIdentify] = scanHandler(h.Identify)
+	}
+	if h.Describe != nil {
+		to[wittymodule.CallScanDescribe] = scanHandler(h.Describe)
+	}
+}
+
+func scanHandler[A, R any](f func(context.Context, A) (R, error)) Handler {
+	return func(ctx context.Context, _ json.RawMessage, args []json.RawMessage) ([]any, any, error) {
+		var a A
+		if err := Arg(args, 0, &a); err != nil {
+			return nil, nil, err
+		}
+		r, err := f(ctx, a)
+		if err != nil {
+			return nil, nil, err
+		}
+		return []any{r}, nil, nil
+	}
 }
 
 // StartParams is what a server of module API 5 or newer tells a service as it starts it: where
@@ -163,6 +203,14 @@ func helperCalls(c Config, started *Started) func(method string, params json.Raw
 }
 
 func listen(c Config) (*Started, error) {
+	if c.Scan != nil {
+		handlers := make(map[string]Handler, len(c.Handlers)+3)
+		for k, v := range c.Handlers {
+			handlers[k] = v
+		}
+		c.Scan.handlers(handlers)
+		c.Handlers = handlers
+	}
 	if c.Busy != nil {
 		handlers := make(map[string]Handler, len(c.Handlers)+1)
 		for k, v := range c.Handlers {

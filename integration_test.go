@@ -32,12 +32,13 @@ const goodIntegration = `{
   "data": {"store": "sqlite", "backup": "saves"},
   "lifecycle": {"install": true, "upgrade": true, "uninstall": "ask-keep-data"},
   "live": {"sessions": true},
+  "scan": {"libraryKinds": ["games"], "identify": true, "describe": true, "facet": "console"},
   "network": {"hosts": [{"host": "retroachievements.org", "why": "Achievements for the games you play"}]}
 }`
 
 func playManifest() *Manifest {
 	return &Manifest{ID: "wittyplay", Name: "WittyPlay", Version: "0.5.0", Delivery: DeliveryHelper, WebEntry: "index.js",
-		API: 5, MinServer: "0.9.0-alpha", MaxServer: "0.9.x", Permissions: []string{PermissionData, PermissionNetwork}, DataFormat: 1, DataFrom: 1}
+		API: 5, MinServer: "0.9.0-alpha", MaxServer: "0.9.x", Permissions: []string{PermissionData, PermissionNetwork}, DataFormat: 1, DataFrom: 1, Libraries: []string{"games"}}
 }
 
 func TestIntegrationGood(t *testing.T) {
@@ -49,7 +50,7 @@ func TestIntegrationGood(t *testing.T) {
 		t.Fatalf("a good file has problems:\n%v", err)
 	}
 	s := in.Summary()
-	if s.Routes != 4 || !s.Data || len(s.Screens) != 2 || s.Feature != "games" {
+	if s.Routes != 4 || !s.Data || len(s.Screens) != 2 || s.Feature != "games" || len(s.Scans) != 1 || s.Scans[0] != "games" {
 		t.Fatalf("summary %+v", s)
 	}
 }
@@ -93,6 +94,10 @@ func TestIntegrationProblems(t *testing.T) {
 		"bad host":              {`"host": "retroachievements.org"`, `"host": "http://x"`, "network.hosts[0].host"},
 		"no why":                {`"why": "Achievements for the games you play"`, `"why": ""`, "network.hosts[0].why"},
 		"hidden without launch": {`"search": ["cores", "BIOS"]}`, `"search": ["cores", "BIOS"], "hidden": true}`, "web.settings[0].hidden"},
+		"scan of another kind":  {`"scan": {"libraryKinds": ["games"]`, `"scan": {"libraryKinds": ["music"]`, "scan.libraryKinds[0]"},
+		"scan no kinds":         {`"scan": {"libraryKinds": ["games"]`, `"scan": {"libraryKinds": []`, "scan.libraryKinds"},
+		"scan no identify":      {`"identify": true, "describe"`, `"identify": false, "describe"`, "scan.identify"},
+		"scan bad facet":        {`"facet": "console"`, `"facet": "Console!"`, "scan.facet"},
 		"duplicate route":       {`{"path": "/rooms", "methods": ["POST"], "auth": "user"}`, `{"path": "/rooms", "methods": ["POST"], "auth": "user"}, {"path": "/rooms", "methods": ["POST"], "auth": "user"}`, "http[3]"},
 	}
 	for name, c := range cases {

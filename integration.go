@@ -54,6 +54,9 @@ type Integration struct {
 	Data      *DataPart  `json:"data,omitempty"`
 	Lifecycle *Lifecycle `json:"lifecycle,omitempty"`
 	Live      *LivePart  `json:"live,omitempty"`
+	// Scan says which kinds of library the module scans: the server walks their files and asks
+	// the module what they are (scan hooks).
+	Scan *ScanPart `json:"scan,omitempty"`
 	// Network is what the module reaches on the internet by itself.
 	Network *NetworkPart `json:"network,omitempty"`
 }
@@ -549,8 +552,26 @@ func (in *Integration) Check(m *Manifest) []Problem {
 	if l := in.Lifecycle; l != nil && l.Uninstall != "" && !slices.Contains([]string{"ask-keep-data", "keep-data", "remove-data"}, l.Uninstall) {
 		add("lifecycle.uninstall", "must be ask-keep-data, keep-data or remove-data")
 	}
-	if (len(in.HTTP) > 0 || in.Lifecycle != nil || in.Data != nil) && m.Delivery != DeliveryHelper {
-		add("http", "routes, data and lifecycle need a module with a service (delivery helper)")
+	if sc := in.Scan; sc != nil {
+		if len(sc.LibraryKinds) == 0 {
+			add("scan.libraryKinds", "needs at least one kind of library")
+		}
+		for i, k := range sc.LibraryKinds {
+			if !kindName.MatchString(k) {
+				add(fmt.Sprintf("scan.libraryKinds[%d]", i), "%q isn't a kind of library", k)
+			} else if !slices.Contains(m.Libraries, k) {
+				add(fmt.Sprintf("scan.libraryKinds[%d]", i), "%q isn't one of the libraries module.json lists", k)
+			}
+		}
+		if !sc.Identify {
+			add("scan.identify", "a module that scans a kind of library identifies its files")
+		}
+		if sc.Facet != "" && !kindName.MatchString(sc.Facet) {
+			add("scan.facet", "%q isn't a facet name", sc.Facet)
+		}
+	}
+	if (len(in.HTTP) > 0 || in.Lifecycle != nil || in.Data != nil || in.Scan != nil) && m.Delivery != DeliveryHelper {
+		add("http", "routes, data, lifecycle and scan hooks need a module with a service (delivery helper)")
 	}
 	return ps
 }
@@ -618,6 +639,7 @@ type IntegrationSummary struct {
 	Settings []string `json:"settings,omitempty"`
 	Data     bool     `json:"data,omitempty"`
 	Feature  string   `json:"feature,omitempty"`
+	Scans    []string `json:"scans,omitempty"` // kinds of library it scans
 }
 
 // Summary sums the file up.
@@ -630,6 +652,9 @@ func (in *Integration) Summary() IntegrationSummary {
 		for _, t := range in.Web.Settings {
 			s.Settings = append(s.Settings, t.Label)
 		}
+	}
+	if in.Scan != nil {
+		s.Scans = append(s.Scans, in.Scan.LibraryKinds...)
 	}
 	return s
 }

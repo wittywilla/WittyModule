@@ -3,6 +3,11 @@
 What changed in WittyModule, newest first. What changed before it had a repository of its own is in the
 [WittyMediaServer changelog](https://github.com/wittywilla/WittyMediaServer/blob/master/CHANGELOG.md).
 
+## Unreleased (0.5.3)
+
+- **Scan hooks.** `integration.json` gains `scan` (`ScanPart`): the kinds of library a module scans (`libraryKinds`), whether it answers `identify` and `describe`, and the facet such a library can be held to (`console`). The server walks the library's files and calls the module's service: `scan.choices` (`ScanChoices`), `scan.identify` in batches with a last `Done` call that answers every item (`ScanItem`: files in order, kind, title, tagline, year, facets, which item it's another version of), and `scan.describe` (`ItemFields`). `service.Config.Scan` (`ScanHooks`) answers them; `check` checks the part. The catalogue summary lists the kinds a module scans.
+- Host API: `SetItem` (`PATCH /items/{id}`) sets an item's generic fields from what a module found out later (never a field a person typed), and `Rescan` (`POST /libraries/{id}/scan`).
+
 ## 0.5.2
 
 - **A module's SDUI can declare its own commands.** `sdui.Module.Commands` (`sdui.Command`, `sdui.CommandParam`, the server's `CommandSpec`) lists the actions a module's screens use: each is `<module>.<name>`, calls one of the module's own routes (`/api/modules/<module>/…`) with its method, body and parameters, and is checked as the server checks it. A server merges them into its live catalogue, so the apps run them without knowing the module.

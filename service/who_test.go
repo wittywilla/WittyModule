@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/wittywilla/wittymodule"
@@ -114,5 +115,46 @@ func TestHTTPRoutesAndLifecycle(t *testing.T) {
 	}
 	if len(heard) != 2 || heard[0] != "lifecycle.upgrade 0.4.2>0.5.0" {
 		t.Fatalf("%v", heard)
+	}
+}
+
+func TestScanHooks(t *testing.T) {
+	c := Config{Scan: &ScanHooks{
+		Choices: func(_ context.Context, a wittymodule.ScanChoicesArgs) (wittymodule.ScanChoices, error) {
+			return wittymodule.ScanChoices{Facet: "console", Values: []wittymodule.ScanChoice{{ID: "snes", Name: "Super Nintendo", Short: "SNES"}}}, nil
+		},
+		Identify: func(ctx context.Context, a wittymodule.ScanIdentifyArgs) (wittymodule.ScanIdentified, error) {
+			if !a.Done {
+				return wittymodule.ScanIdentified{}, nil
+			}
+			return wittymodule.ScanIdentified{Items: []wittymodule.ScanItem{{Files: []string{"/g/a.sfc"}, Kind: "game", Title: "A " + a.Scan, Facets: map[string]string{"console": "snes"}}}}, nil
+		},
+	}}
+	started, err := listen(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, _ := url.Parse(started.URL)
+	conn := &Conn{Base: base, Token: started.Token, Client: http.DefaultClient}
+	var choices wittymodule.ScanChoices
+	if err := conn.Call(context.Background(), wittymodule.CallScanChoices, nil, nil, []any{wittymodule.ScanChoicesArgs{LibraryKind: "games"}}, []any{&choices}); err != nil {
+		t.Fatal(err)
+	}
+	if choices.Facet != "console" || len(choices.Values) != 1 || choices.Values[0].Short != "SNES" {
+		t.Fatalf("%+v", choices)
+	}
+	var got wittymodule.ScanIdentified
+	args := wittymodule.ScanIdentifyArgs{Scan: "s1", Library: wittymodule.ScanLibrary{ID: 3, Kind: "games"}, Done: true}
+	if err := conn.Call(context.Background(), wittymodule.CallScanIdentify, nil, nil, []any{args}, []any{&got}); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Items) != 1 || got.Items[0].Title != "A s1" || got.Items[0].Facets["console"] != "snes" {
+		t.Fatalf("%+v", got)
+	}
+	// A hook the module doesn't answer is unknown, not a failure of the module's.
+	err = conn.Call(context.Background(), wittymodule.CallScanDescribe, nil, nil, []any{wittymodule.ScanDescribeArgs{}}, nil)
+	var ce *CallError
+	if !errors.As(err, &ce) || ce.Code != "unknown-method" {
+		t.Fatalf("describe: %v", err)
 	}
 }
