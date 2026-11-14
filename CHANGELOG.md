@@ -3,9 +3,10 @@
 What changed in WittyModule, newest first. What changed before it had a repository of its own is in the
 [WittyMediaServer changelog](https://github.com/wittywilla/WittyMediaServer/blob/master/CHANGELOG.md).
 
-## Unreleased
+## 0.5.4
 
 - **Module API 5 only.** `MinAPI` is 5: `check` refuses a manifest of API 3 or 4, and `Supports` says to install a version built for module API 5. `SDUIFromAPI` and `IntegrationFromAPI` are gone: every helper, program and web module carries `sdui.json` and `integration.json`. This module's own manifest says API 5. Specification 5.0.
+- `sdui/core` and the SDUI kit follow the server: `meta.refreshSec` (a page with something in progress asks to be drawn again while open), the `manage-libraries` and `manage-library` pages with focusable lists, and the layer rules.
 - `service.Item` has `versionOf` and `versionLabel`: the item it is another version of, and what this version is called, as the host's `Item` answers them.
 
 ## 0.5.3
