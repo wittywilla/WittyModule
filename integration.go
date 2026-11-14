@@ -75,6 +75,9 @@ type Route struct {
 	Upgrade string `json:"upgrade,omitempty"` // "websocket"
 	// Stream: the answer is a stream, sent on as it comes, with no size or time limit.
 	Stream bool `json:"stream,omitempty"`
+	// Plays: calling it starts or goes on playing something, so it counts towards a profile's
+	// screen time and is refused when that time is up (leaving, a DELETE, never is).
+	Plays bool `json:"plays,omitempty"`
 	// Alias are the server's own paths this route also answers, kept for apps that call them
 	// (/api/games/{id}/play). A server allows only the paths its list for this module names.
 	Alias []string `json:"alias,omitempty"`

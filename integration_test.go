@@ -13,7 +13,7 @@ const goodIntegration = `{
   "host": {"http": ">=1 <2", "web": ">=5"},
   "feature": "games",
   "http": [
-    {"path": "/games/{id}/play", "methods": ["POST"], "auth": "user", "item": "id",
+    {"path": "/games/{id}/play", "methods": ["POST"], "auth": "user", "item": "id", "plays": true,
      "alias": ["/api/games/{id}/play"], "limits": {"body": "256KB", "time": "3m"}},
     {"path": "/play/{sid}/stream", "methods": ["GET", "POST"], "auth": "user", "upgrade": "websocket", "stream": true,
      "alias": ["/api/play/{sid}/stream"]},
