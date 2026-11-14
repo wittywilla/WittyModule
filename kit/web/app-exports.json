@@ -6,6 +6,11 @@
       "PageRoutes",
       "default"
     ],
+    "a11y": [
+      "Announcer",
+      "announce",
+      "useDialogs"
+    ],
     "api": [
       "ApiError",
       "CARD_SIZES",
@@ -52,6 +57,20 @@
       "sized",
       "uploadFile"
     ],
+    "audio/player": [
+      "AudioProvider",
+      "useAudio",
+      "useCd"
+    ],
+    "audio/visualizer": [
+      "VisualizerView",
+      "acceptedFlashNotice",
+      "shaderEffects",
+      "shaderSession",
+      "trackingMedia",
+      "visualizerHost",
+      "visualizerWantedWithPlayer"
+    ],
     "components/ArtworkPicker": [
       "ART_KINDS",
       "ART_SOURCE",
@@ -64,10 +83,6 @@
       "logoVariant",
       "lookupLogo",
       "useLogo"
-    ],
-    "components/ConsoleMark": [
-      "ConsoleMark",
-      "StudioMark"
     ],
     "components/HelpLink": [
       "HelpLink",
@@ -267,9 +282,6 @@
       "Libraries",
       "default"
     ],
-    "pages/games/VirtualGames": [
-      "VirtualGames"
-    ],
     "pages/settings/ModuleSettings": [
       "ModuleSettingsList",
       "ModuleSettingsPage",
@@ -316,8 +328,74 @@
       "updateChoiceFrom",
       "updateSettings"
     ],
+    "player/Controls": [
+      "Controls",
+      "SPEEDS",
+      "setSpeed",
+      "useVideoState"
+    ],
     "player/InlinePlayer": [
       "default"
+    ],
+    "player/InsertDisc": [
+      "default"
+    ],
+    "player/Remote": [
+      "RemoteBar",
+      "RemoteSheet",
+      "default",
+      "useSheetLayout"
+    ],
+    "player/TrackPicker": [
+      "default"
+    ],
+    "player/ViewSettings": [
+      "default"
+    ],
+    "player/chrome": [
+      "PlayerChromeContext",
+      "usePlayerChrome"
+    ],
+    "player/hooks": [
+      "haveHls",
+      "toggleFullscreen",
+      "useIdle",
+      "useSource"
+    ],
+    "player/remoteKeys": [
+      "ALL_KEYS",
+      "ARROW_KEYS",
+      "COLOUR_KEYS",
+      "DIGIT_KEYS",
+      "MENU_ONLY",
+      "barAllowed",
+      "catalogueDims",
+      "discForm",
+      "keyLabel",
+      "keyWorks",
+      "kindLabel",
+      "remoteLabel",
+      "remoteNote",
+      "remoteRule",
+      "setRemoteCatalogue",
+      "sheetPages",
+      "videoForm"
+    ],
+    "player/speed": [
+      "SPEEDS",
+      "setSpeed"
+    ],
+    "player/viewPrefs": [
+      "DEFAULT_VIEW",
+      "clearStuck3D",
+      "discMemory",
+      "globalView",
+      "loadView",
+      "rememberDisc",
+      "saveScope",
+      "saveView",
+      "setGlobalView",
+      "useViewPrefs"
     ],
     "remote/PlayOnButton": [
       "AudioPlayOn",
@@ -335,6 +413,20 @@
       "useBookRemote",
       "useGameRemote",
       "usePhotoRemote"
+    ],
+    "remote/playerStates": [
+      "audioPlayerKind",
+      "audioState",
+      "bookState",
+      "discState",
+      "gameState",
+      "photoState",
+      "tvState"
+    ],
+    "remote/target": [
+      "mediaVolume",
+      "useMediaReports",
+      "useRemoteTarget"
     ],
     "sdui/SduiPage": [
       "PageLoading",
@@ -426,30 +518,6 @@
       "albumSpec",
       "viewerAlbumSpec"
     ],
-    "spec/specs/consoleCores": [
-      "coresSpec"
-    ],
-    "spec/specs/emulatorChoices": [
-      "emulatorChoicesSpec"
-    ],
-    "spec/specs/fixgame": [
-      "fixGameSpec",
-      "versionLinksSpec"
-    ],
-    "spec/specs/gameLibrary": [
-      "gameFiltersSpec",
-      "letterSpec",
-      "splitFilterId"
-    ],
-    "spec/specs/gameReview": [
-      "KIND_WORDS",
-      "bulkGroups",
-      "kindWord",
-      "reviewSpec"
-    ],
-    "spec/specs/manualEmulator": [
-      "manualSpec"
-    ],
     "spec/specs/media": [
       "autoplaySpec",
       "bookActionsSpec",
@@ -496,6 +564,12 @@
       "press",
       "setPageMove",
       "typing"
+    ],
+    "tvmode/mode": [
+      "getTvMode",
+      "installTvMode",
+      "setTvMode",
+      "useTvMode"
     ],
     "ui/Button": [
       "Button",

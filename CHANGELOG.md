@@ -3,10 +3,12 @@
 What changed in WittyModule, newest first. What changed before it had a repository of its own is in the
 [WittyMediaServer changelog](https://github.com/wittywilla/WittyMediaServer/blob/master/CHANGELOG.md).
 
-## Unreleased (0.5.3)
+## 0.5.3
 
 - **Scan hooks.** `integration.json` gains `scan` (`ScanPart`): the kinds of library a module scans (`libraryKinds`), whether it answers `identify` and `describe`, and the facet such a library can be held to (`console`). The server walks the library's files and calls the module's service: `scan.choices` (`ScanChoices`), `scan.identify` in batches with a last `Done` call that answers every item (`ScanItem`: files in order, kind, title, tagline, year, facets, which item it's another version of), and `scan.describe` (`ItemFields`). `service.Config.Scan` (`ScanHooks`) answers them; `check` checks the part. The catalogue summary lists the kinds a module scans.
 - Host API: `SetItem` (`PATCH /items/{id}`) sets an item's generic fields from what a module found out later (never a field a person typed), and `Rescan` (`POST /libraries/{id}/scan`).
+- `sdui/core` and the SDUI kit follow the server: a Notice can carry a quieter second button (`dismissLabel`, `dismissOp`, `dismissParams`, sent as `dismiss`); the command `setup.skip` puts off a module's setup step; the disc commands (`disc.*`) are gone from the catalogue, now WittyDVD's and WittyBluray's own (`wittydvd.*`, `wittybluray.*`).
+- `kit/web`: the app's parts a bundle may use follow the server after WittyCouch, WittyRigs, WittyPlay, WittyDisc, WittyCD, WittyTuner, WittyPhotos and the readers took their screens.
 
 ## 0.5.2
 
