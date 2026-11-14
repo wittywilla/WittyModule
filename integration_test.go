@@ -97,6 +97,7 @@ func TestIntegrationProblems(t *testing.T) {
 		"setup other page":     {`"page": "wittyplay-setup"`, `"page": "wittytuner-setup"`, "web.setup[0].page"},
 		"bad host":             {`"host": "retroachievements.org"`, `"host": "http://x"`, "network.hosts[0].host"},
 		"no why":               {`"why": "Achievements for the games you play"`, `"why": ""`, "network.hosts[0].why"},
+		"hidden without launch": {`"search": ["cores", "BIOS"]}`, `"search": ["cores", "BIOS"], "hidden": true}`, "web.settings[0].hidden"},
 		"duplicate route":      {`{"path": "/rooms", "methods": ["POST"], "auth": "user"}`, `{"path": "/rooms", "methods": ["POST"], "auth": "user"}, {"path": "/rooms", "methods": ["POST"], "auth": "user"}`, "http[3]"},
 	}
 	for name, c := range cases {

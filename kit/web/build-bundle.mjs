@@ -109,6 +109,8 @@ for (const [path, names] of Object.entries(appExports)) {
 
 function sharedName(source) {
   if (source in shared) return source
+  // A folder's own index, as a bundler would find it: @wms/app/ui is ui/index.
+  if (source.startsWith('@wms/app/') && (source + '/index') in shared) return source + '/index'
   if (source.startsWith('@wms/app/')) throw new Error(`${source}: the app doesn't share that part (kit/web/app-exports.json)`)
   if (/^pdfjs-dist\/.*worker.*\?url$/.test(source)) return 'pdfjs-dist/worker'
   if (/^pdfjs-dist\/(legacy\/)?build\/pdf(\.min)?\.mjs$/.test(source)) return 'pdfjs-dist'

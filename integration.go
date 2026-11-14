@@ -174,6 +174,11 @@ type SettingsTab struct {
 	Admin  bool     `json:"admin,omitempty"`
 	After  string   `json:"after,omitempty"`  // another section's id
 	Search []string `json:"search,omitempty"` // words Settings' search finds it by
+	// Launch makes the row open a place of the module's own instead of drawing a section in
+	// Settings: one interface, the module's (WittyPlay's store for cores and emulators).
+	Launch string `json:"launch,omitempty"`
+	// Hidden takes a built-in section of this id out of Settings' menu; its address goes to Launch.
+	Hidden bool `json:"hidden,omitempty"`
 }
 
 // SetupStep is a step of the first-run setup the module adds (and a "Finish setting up" step
@@ -462,6 +467,12 @@ func (in *Integration) Check(m *Manifest) []Problem {
 			}
 			if s.Label == "" || len(s.Label) > 60 {
 				add(f+".label", "needs a label of at most 60 characters")
+			}
+			if s.Launch != "" && !strings.HasPrefix(s.Launch, "/") {
+				add(f+".launch", "must be a place in the app, starting with /")
+			}
+			if s.Hidden && s.Launch == "" {
+				add(f+".hidden", "a hidden section needs launch: where its address goes")
 			}
 			if len(s.Search) > 32 {
 				add(f+".search", "at most 32 words")
