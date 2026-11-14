@@ -210,6 +210,33 @@ func (c *Client) Items(ctx context.Context, on On, q Query) ([]service.Item, err
 	return out.Items, c.Do(ctx, on, "GET", "/items?"+v.Encode(), nil, &out)
 }
 
+// Library is one of the server's libraries of a kind the module serves.
+type Library struct {
+	ID      int64    `json:"id"`
+	Name    string   `json:"name"`
+	Kind    string   `json:"kind"`              // games, …
+	Console string   `json:"console,omitempty"` // a games library's console, or "auto"
+	Paths   []string `json:"paths"`             // its folders, for reading only (a BIOS sweep)
+}
+
+// Libraries are the libraries of the kinds the module serves (all of them: this isn't on anyone's
+// behalf, and the folders are for the module's own work, never shown to a person by it).
+func (c *Client) Libraries(ctx context.Context) ([]Library, error) {
+	var out struct {
+		Libraries []Library `json:"libraries"`
+	}
+	return out.Libraries, c.Do(ctx, On{}, "GET", "/libraries", nil, &out)
+}
+
+// Counts counts the items a person may see in the module's kinds of library, by a facet
+// (console): what a console page says it has.
+func (c *Client) Counts(ctx context.Context, on On, libraryKind, facet string) (map[string]int, error) {
+	var out struct {
+		Counts map[string]int `json:"counts"`
+	}
+	return out.Counts, c.Do(ctx, on, "GET", "/items/counts?libraryKind="+url.QueryEscape(libraryKind)+"&by="+url.QueryEscape(facet), nil, &out)
+}
+
 // May reports whether a person may use a feature (games, livetv …) now: their profile's
 // limits, parental rules and screen time.
 func (c *Client) May(ctx context.Context, on On, feature string) (bool, error) {
