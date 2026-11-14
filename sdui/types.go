@@ -3,6 +3,8 @@
 
 package sdui
 
+import core "github.com/wittywilla/wittymodule/sdui/core"
+
 import "encoding/json"
 
 // The types of a module's SDUI file, as the server reads it. They are copies of the
@@ -195,77 +197,28 @@ type NavItem struct {
 	Placement map[string]string `json:"placement,omitempty"`
 }
 
-// Item is one thing a data source found, in the one shape every card style
-// reads. A source fills what it knows; a card style shows what it has room
+// Item is one thing a data source found, in the one shape every card style reads: the server's
+// own (sdui/core), so a module's card can carry everything the server's cards can, a row's switch
+// (Control), what tapping it does (Action), the text at its end (Trailing) and a detail panel's
+// buttons (Actions) included. A source fills what it knows; a card style shows what it has room
 // for (see CardStyles).
-type Item struct {
-	// ID is unique among the items of one source, and stable.
-	ID string `json:"id"`
-	// Kind is movie, episode, show, season, video, disc, album, artist, track,
-	// book, audiobook, podcast, game, photo, channel, recording, collection,
-	// library, genre or view.
-	Kind     string `json:"kind"`
-	Title    string `json:"title"`
-	Subtitle string `json:"subtitle,omitempty"`
-	Overview string `json:"overview,omitempty"`
-	Tagline  string `json:"tagline,omitempty"`
-	Year     int    `json:"year,omitempty"`
-	// Rating is the community score out of 10; ContentRating the certificate.
-	Rating        float64  `json:"rating,omitempty"`
-	ContentRating string   `json:"contentRating,omitempty"`
-	RuntimeSec    float64  `json:"runtimeSec,omitempty"`
-	Genres        []string `json:"genres,omitempty"`
-	Studio        string   `json:"studio,omitempty"`
-	// Progress is how far through it the profile is, 0 to 1; Watched that it
-	// finished; Unwatched how many episodes of a show are left.
-	Progress  float64 `json:"progress,omitempty"`
-	Watched   bool    `json:"watched,omitempty"`
-	Unwatched int     `json:"unwatched,omitempty"`
-	// InWatchLater: the title is on the profile's Watch later list.
-	InWatchLater bool `json:"inWatchLater,omitempty"`
-	// ResumeSec is where Play picks up, 0 to start over.
-	ResumeSec float64 `json:"resumeSec,omitempty"`
-	// Season and Episode number an episode; ShowTitle names its show.
-	Season    int    `json:"season,omitempty"`
-	Episode   int    `json:"episode,omitempty"`
-	ShowTitle string `json:"showTitle,omitempty"`
-	ShowID    string `json:"showId,omitempty"`
-	// Artist and Track are a song's; Count is how many things an album,
-	// artist, library, collection or season holds.
-	Artist string `json:"artist,omitempty"`
-	Track  int    `json:"track,omitempty"`
-	Count  int    `json:"count,omitempty"`
-	// Number is a channel's number. Now and Next are what is on it.
-	Number string     `json:"number,omitempty"`
-	Now    *Programme `json:"now,omitempty"`
-	Next   *Programme `json:"next,omitempty"`
-	// Images are addresses on this server by kind: poster (2/3), backdrop
-	// (16/9), square (1/1), logo. Render adds the width to ask for.
-	Images map[string]string `json:"images,omitempty"`
-	// Route is the item's place in the app; PlayID what to play, when it can
-	// be played from a card.
-	Route  string `json:"route,omitempty"`
-	PlayID string `json:"playId,omitempty"`
-	// Badges are short labels: 4K, HDR, NEW, LIVE.
-	Badges []string `json:"badges,omitempty"`
-	// Icon is one of Icons, for items without pictures (libraries, genres).
-	Icon string `json:"icon,omitempty"`
-	// Scope is the theme scope the item belongs to (wittytv for a channel).
-	Scope string `json:"scope,omitempty"`
-	// Can lists what DetailHeader may offer for the item: play, download,
-	// share, watchLater, watched, playOn, watchParty.
-	Can []string `json:"can,omitempty"`
-	// NextID is the item Play should start for a show: its next episode.
-	NextID string `json:"nextId,omitempty"`
-}
+type Item = core.Item
 
 // Programme is something on a channel.
-type Programme struct {
-	Title string `json:"title"`
-	// Start and End are Unix seconds.
-	Start int64 `json:"start,omitempty"`
-	End   int64 `json:"end,omitempty"`
-}
+type Programme = core.Programme
+
+// Action is what activating an item (or one of its buttons) does: a route, playing a title, or
+// one of the module's own commands.
+type Action = core.Action
+
+// Control is a switch, choice, field or slider drawn in a List row.
+type Control = core.Control
+
+// ItemAction is one button of an item's detail panel.
+type ItemAction = core.ItemAction
+
+// Titles are a game's other names.
+type Titles = core.Titles
 
 // EnumOption is one choice of a property or facet.
 type EnumOption struct {

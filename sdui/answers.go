@@ -34,6 +34,9 @@ type ItemsRequest struct {
 
 // Viewer is who the page is for.
 type Viewer struct {
+	// User is the account the page is for (its id on the server), for a module's own data about
+	// that person: what they played, their friends, their saves.
+	User        int64    `json:"user,omitempty"`
 	ProfileKind string   `json:"profileKind"`
 	Admin       bool     `json:"admin,omitempty"`
 	Cannot      []string `json:"cannot,omitempty"`

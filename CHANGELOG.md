@@ -3,6 +3,10 @@
 What changed in WittyModule, newest first. What changed before it had a repository of its own is in the
 [WittyMediaServer changelog](https://github.com/wittywilla/WittyMediaServer/blob/master/CHANGELOG.md).
 
+## 0.5.1
+
+- **A module's SDUI sources know who is asking, and its cards can carry everything the server's do.** `sdui.Viewer.User` is the account a page is for, so a source can answer with that person's own things (what they played, their friends, their saves). `sdui.Item` is now the server's own card (`sdui/core`'s `Item`), so a module's items carry a row's switch or choice (`Control`), what tapping does (`Action`), the text at its end (`Trailing`), a detail panel's buttons (`Actions`), a game's other names (`Titles`) and the rest; `Action`, `Control`, `ItemAction`, `Titles` and `Programme` are the server's types too. Needs a server that sends `viewer.user` (WittyMediaServer 0.9.0-alpha).
+
 ## 0.5.0
 
 Module API 5, for WittyMediaServer 0.9.0-alpha: a module owns its whole feature (its routes, data, screens and settings). A server of module API 5 takes API 5 modules only.
