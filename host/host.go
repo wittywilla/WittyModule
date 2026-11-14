@@ -349,3 +349,30 @@ func Needs(in *wittymodule.Integration, offers map[string]int) error {
 	}
 	return nil
 }
+
+// LegacyFiles lists the files of one of the server's folders that the module's import names
+// (gaming/backgrounds), to take over once.
+func (c *Client) LegacyFiles(ctx context.Context, dir string) ([]string, error) {
+	var out struct {
+		Files []string `json:"files"`
+	}
+	return out.Files, c.Do(ctx, On{}, "GET", "/legacy-files/"+dir, nil, &out)
+}
+
+// LegacyFile reads one of them.
+func (c *Client) LegacyFile(ctx context.Context, path string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.base+Base+"/legacy-files/"+path, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set(HeaderToken, c.token)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return nil, &Error{Status: resp.StatusCode, Message: resp.Status}
+	}
+	return io.ReadAll(io.LimitReader(resp.Body, 64<<20))
+}
