@@ -65,10 +65,6 @@
       "lookupLogo",
       "useLogo"
     ],
-    "components/ConsoleMark": [
-      "ConsoleMark",
-      "StudioMark"
-    ],
     "components/HelpLink": [
       "HelpLink",
       "PageHelp",
@@ -239,9 +235,6 @@
       "Libraries",
       "default"
     ],
-    "pages/games/VirtualGames": [
-      "VirtualGames"
-    ],
     "pages/settings/ModuleSettings": [
       "ModuleSettingsList",
       "ModuleSettingsPage",
@@ -382,30 +375,6 @@
       "secR",
       "sectionId",
       "withIds"
-    ],
-    "spec/specs/consoleCores": [
-      "coresSpec"
-    ],
-    "spec/specs/emulatorChoices": [
-      "emulatorChoicesSpec"
-    ],
-    "spec/specs/fixgame": [
-      "fixGameSpec",
-      "versionLinksSpec"
-    ],
-    "spec/specs/gameLibrary": [
-      "gameFiltersSpec",
-      "letterSpec",
-      "splitFilterId"
-    ],
-    "spec/specs/gameReview": [
-      "KIND_WORDS",
-      "bulkGroups",
-      "kindWord",
-      "reviewSpec"
-    ],
-    "spec/specs/manualEmulator": [
-      "manualSpec"
     ],
     "state": [
       "AppProvider",

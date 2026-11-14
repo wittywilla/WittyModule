@@ -39,6 +39,7 @@ export interface ModuleApi {
 
 export type GameArtArgs = { itemId: string; console: string; image: string; title: string }
 export type CardArgs = GameArtArgs & { kind: string }
+export type GameBioArgs = GameArtArgs & { top?: ReactNode; actions?: ReactNode; children: ReactNode }
 export interface CardParts {
   /** Wraps the app's frame and provides the card contexts itself (sdui.GameArtContext, sdui.CardRouteContext). */
   Provider?: ComponentType<{ children: ReactNode }>
@@ -87,7 +88,8 @@ export interface ModuleHost {
   LegalNote: ComponentType<{ kind: string; className?: string; newTab?: boolean }>
   sdui: {
     CardRouteContext: Context<(to: string) => string>
-    GameArtContext: Context<{ art: (a: GameArtArgs) => ReactNode | null; detail?: (a: GameArtArgs) => ReactNode; cover?: (a: GameArtArgs) => ReactNode } | null>
+    /** bio: the panel under a row about a game, drawn around the panel's own title (children) and buttons (actions). */
+    GameArtContext: Context<{ art: (a: GameArtArgs) => ReactNode | null; detail?: (a: GameArtArgs) => ReactNode; cover?: (a: GameArtArgs) => ReactNode; bio?: (a: GameBioArgs) => ReactNode } | null>
     GlyphContext: Context<((g: 'a' | 'b' | 'x' | 'y') => ReactNode) | null>
     RowLayoutContext: Context<'shelf' | 'grid' | 'list'>
     TabsContext: Context<unknown>
