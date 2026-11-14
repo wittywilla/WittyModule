@@ -3,7 +3,7 @@
 
 package sdui
 
-import core "github.com/wittywilla/wittymodule/sdui/internal/core"
+import core "github.com/wittywilla/wittymodule/sdui/core"
 
 // What a module's page puts into the shell while it shows (catalogue revision 8): the status bar's
 // content and the round system dock's destinations. The experience decides where and how they're

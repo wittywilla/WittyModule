@@ -429,7 +429,7 @@ app draws with its own components. A version built for API 4 without one is refu
 file fails the server's checks is refused, unless an administrator agrees to run it without its SDUI
 ([section 22](#22-overrides), kind `incomplete`). The full format is WittyMediaServer's
 **`docs/SDUI-MODULES.md`**; the code is `pkg/sdui/module.go` there, and WittyModule's `sdui` package
-carries a copy of the server's validator (`sdui/internal/core`, kept current with
+carries a copy of the server's validator (`sdui/core`, kept current with
 `kit/sync-sdui-core.sh`), so `sdui.Check` checks exactly as a server does.
 
 **Where it is.** Beside `module.json`: at the root of the repository and of every archive.

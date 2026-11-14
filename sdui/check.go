@@ -23,7 +23,7 @@ import (
 	"slices"
 	"strings"
 
-	core "github.com/wittywilla/wittymodule/sdui/internal/core"
+	core "github.com/wittywilla/wittymodule/sdui/core"
 )
 
 // File is the name of a module's SDUI file, beside module.json.

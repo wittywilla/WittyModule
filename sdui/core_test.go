@@ -25,7 +25,7 @@ func TestCheckIsTheServersValidator(t *testing.T) {
 	}
 }
 
-// internal/core is a copy of the server's pkg/sdui. Beside a server checkout (or with
+// core is a copy of the server's pkg/sdui. Beside a server checkout (or with
 // WMS_SERVER naming one), it must be the same, file for file: run kit/sync-sdui-core.sh.
 // Without one there is nothing to compare with, and the test says so.
 func TestCoreIsTheServersCopy(t *testing.T) {
@@ -38,7 +38,7 @@ func TestCoreIsTheServersCopy(t *testing.T) {
 	}
 	src := filepath.Join(server, "pkg", "sdui")
 	if _, err := os.Stat(filepath.Join(src, "module.go")); err != nil {
-		t.Skip("no WittyMediaServer checkout beside this one, or in WMS_SERVER, to compare internal/core with")
+		t.Skip("no WittyMediaServer checkout beside this one, or in WMS_SERVER, to compare core with")
 	}
 	want := map[string][]byte{}
 	files, _ := filepath.Glob(filepath.Join(src, "*.go"))
@@ -55,13 +55,13 @@ func TestCoreIsTheServersCopy(t *testing.T) {
 			want[d+"/"+filepath.Base(f)] = b
 		}
 	}
-	have, _ := filepath.Glob(filepath.Join("internal", "core", "*.go"))
+	have, _ := filepath.Glob(filepath.Join("core", "*.go"))
 	for _, d := range []string{"data", "experiences"} {
-		more, _ := filepath.Glob(filepath.Join("internal", "core", d, "*.json"))
+		more, _ := filepath.Glob(filepath.Join("core", d, "*.json"))
 		have = append(have, more...)
 	}
 	if len(have) != len(want) {
-		t.Errorf("internal/core has %d files and the server's pkg/sdui %d: run kit/sync-sdui-core.sh", len(have), len(want))
+		t.Errorf("core has %d files and the server's pkg/sdui %d: run kit/sync-sdui-core.sh", len(have), len(want))
 	}
 	for _, f := range have {
 		b, _ := os.ReadFile(f)
@@ -70,7 +70,7 @@ func TestCoreIsTheServersCopy(t *testing.T) {
 			key = d + "/" + key
 		}
 		if w, ok := want[key]; !ok || !bytes.Equal(b, w) {
-			t.Errorf("internal/core/%s differs from the server's: run kit/sync-sdui-core.sh", key)
+			t.Errorf("core/%s differs from the server's: run kit/sync-sdui-core.sh", key)
 		}
 	}
 }
