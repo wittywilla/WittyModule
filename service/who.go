@@ -30,6 +30,8 @@ const (
 	HeaderConfirmed = "X-Witty-Confirmed"
 	// HeaderSignIn is an opaque name for the sign-in a request came from, for host.Session.SignIn.
 	HeaderSignIn = "X-Witty-SignIn"
+	// HeaderAway is "1" when the server counts the device as away from home (not on its network).
+	HeaderAway = "X-Witty-Away"
 )
 
 // Identity is who a request to a module route is from.
@@ -42,6 +44,8 @@ type Identity struct {
 	Confirmed bool
 	// SignIn names the sign-in the request came from, for host.Session.SignIn. Opaque.
 	SignIn string
+	// Away: the server counts the device as away from home, by its own rules (not the address's say).
+	Away bool
 	// Item is the item its route names, when it names one.
 	Item *Item
 }
@@ -65,7 +69,7 @@ type File struct {
 // Who reads who is asking. A request with no user wasn't a signed-in person's (a ticket route,
 // or something else on this machine), and a route for people refuses it.
 func Who(r *http.Request) Identity {
-	id := Identity{Admin: r.Header.Get(HeaderAdmin) == "1", Profile: r.Header.Get(HeaderProfile), Kind: r.Header.Get(HeaderKind), Confirmed: r.Header.Get(HeaderConfirmed) == "1", SignIn: r.Header.Get(HeaderSignIn)}
+	id := Identity{Admin: r.Header.Get(HeaderAdmin) == "1", Profile: r.Header.Get(HeaderProfile), Kind: r.Header.Get(HeaderKind), Confirmed: r.Header.Get(HeaderConfirmed) == "1", SignIn: r.Header.Get(HeaderSignIn), Away: r.Header.Get(HeaderAway) == "1"}
 	id.User, _ = strconv.ParseInt(r.Header.Get(HeaderUser), 10, 64)
 	if h := r.Header.Get(HeaderItem); h != "" {
 		if b, err := base64.RawURLEncoding.DecodeString(h); err == nil {
