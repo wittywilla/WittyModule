@@ -137,9 +137,13 @@ func helperCalls(c Config, started *Started) func(method string, params json.Raw
 					return nil, nil, err
 				}
 			}
-			hostMu.Lock()
-			hostInfo = p
-			hostMu.Unlock()
+			// The server asks again now and then, with nothing, to see the process is there: what it
+			// said at the start stands.
+			if p.Host != "" {
+				hostMu.Lock()
+				hostInfo = p
+				hostMu.Unlock()
+			}
 			return started, nil, nil
 		}
 		if strings.HasPrefix(method, "lifecycle.") && c.Lifecycle != nil {

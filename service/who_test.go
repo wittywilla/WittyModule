@@ -102,6 +102,10 @@ func TestHTTPRoutesAndLifecycle(t *testing.T) {
 	if h := Host(); h.Host != "http://127.0.0.1:1" || h.HostToken != "t" || h.Offers["host"] != 1 {
 		t.Fatalf("host %+v", h)
 	}
+	// The server's check that the process is there carries nothing, and changes nothing.
+	if _, _, err := calls(MethodStart, nil); err != nil || Host().HostToken != "t" {
+		t.Fatalf("after a check: %+v %v", Host(), err)
+	}
 	if _, _, err := calls(wittymodule.CallUpgrade, json.RawMessage(`{"from":"0.4.2","to":"0.5.0"}`)); err != nil {
 		t.Fatal(err)
 	}
