@@ -3,6 +3,11 @@
 What changed in WittyModule, newest first. What changed before it had a repository of its own is in the
 [WittyMediaServer changelog](https://github.com/wittywilla/WittyMediaServer/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+- **Module API 5 only.** `MinAPI` is 5: `check` refuses a manifest of API 3 or 4, and `Supports` says to install a version built for module API 5. `SDUIFromAPI` and `IntegrationFromAPI` are gone: every helper, program and web module carries `sdui.json` and `integration.json`. This module's own manifest says API 5. Specification 5.0.
+- `service.Item` has `versionOf` and `versionLabel`: the item it is another version of, and what this version is called, as the host's `Item` answers them.
+
 ## 0.5.3
 
 - **Scan hooks.** `integration.json` gains `scan` (`ScanPart`): the kinds of library a module scans (`libraryKinds`), whether it answers `identify` and `describe`, and the facet such a library can be held to (`console`). The server walks the library's files and calls the module's service: `scan.choices` (`ScanChoices`), `scan.identify` in batches with a last `Done` call that answers every item (`ScanItem`: files in order, kind, title, tagline, year, facets, which item it's another version of), and `scan.describe` (`ItemFields`). `service.Config.Scan` (`ScanHooks`) answers them; `check` checks the part. The catalogue summary lists the kinds a module scans.

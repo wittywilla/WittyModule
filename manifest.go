@@ -28,30 +28,26 @@ import (
 //
 // API 4 makes a module's SDUI part of the module: a release carries sdui.json beside its
 // manifest (package sdui; WittyMediaServer docs/SDUI-MODULES.md), which the server checks
-// against its catalogue, and a version built for API 4 without one is refused. A server
-// that takes API 4 still takes API 3, so nothing breaks until a module is upgraded.
+// against its catalogue, and a version built for API 4 without one is refused.
 //
 // API 5 makes a module own its whole feature: its HTTP routes, the screens it adds to the web
 // app, its data and its lifecycle, declared in integration.json (integration.go), and a host API
-// it calls back on (package host). A server that takes API 5 still takes 3 and 4, and runs its
-// own copy of a module's feature for those until every module has moved.
+// it calls back on (package host). It broke the contract, so it is also the oldest a server
+// takes: a server takes API 5 only, with no backwards compatibility.
 const (
 	API    = 5
-	MinAPI = 3
+	MinAPI = 5
 )
 
-// SDUIFromAPI is the API from which a module must carry its SDUI, and SDUIFile its name.
-const (
-	SDUIFromAPI = 4
-	SDUIFile    = "sdui.json"
-)
+// SDUIFile is the name of a module's SDUI beside its manifest.
+const SDUIFile = "sdui.json"
 
-// NeedsSDUI reports whether a release of this version must carry sdui.json: one built for
-// SDUIFromAPI or newer that a server installs (a library reaches it inside others).
+// NeedsSDUI reports whether a release of this version must carry sdui.json: one a server
+// installs (a library reaches it inside others).
 func (m *Manifest) NeedsSDUI() bool {
 	switch m.Delivery {
 	case DeliveryHelper, DeliveryProgram, DeliveryWeb:
-		return m.API >= SDUIFromAPI
+		return true
 	}
 	return false
 }
@@ -439,7 +435,7 @@ func (m *Manifest) Supports(server string, minAPI, maxAPI int) error {
 		return fmt.Errorf("%s %s needs a newer server: it uses module API %d, and this server has up to %d", m.Name, m.Version, m.API, maxAPI)
 	}
 	if m.API < minAPI {
-		return fmt.Errorf("%s %s is too old for this server: it uses module API %d, and this server needs at least %d. It was built before modules became separate from the server, so install a version made for WittyMediaServer %s or newer", m.Name, m.Version, m.API, minAPI, FirstServer)
+		return fmt.Errorf("%s %s is too old for this server: it uses module API %d, and this server needs at least %d. Install a version built for module API %d", m.Name, m.Version, m.API, minAPI, minAPI)
 	}
 	return nil
 }

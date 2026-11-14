@@ -1,7 +1,9 @@
 # The WittyMediaServer module specification
 
-**Specification 4.0, module API 4.** Written for WittyModule's `wittymodule` package and tool and for
-WittyMediaServer 0.8.0-alpha. It also says where module API 3, which servers still take, differs.
+**Specification 5.0, module API 5.** Written for WittyModule's `wittymodule` package and tool and for
+WittyMediaServer 0.8.0-alpha. A server takes module API 5 only; what API 5 adds (`integration.json`,
+routes, the host API, the web part's `register`, scan hooks, lifecycle) is WittyMediaServer's
+docs/MODULES-API5.md.
 
 This is the whole contract a module is held to: what it is called, what its manifest may say, what a
 release holds and how it is signed, how its programs talk to a server, what it adds to every app, how
@@ -50,7 +52,7 @@ strong advice. Sizes are in bytes unless they say characters (Unicode code point
 21. [Forks](#21-forks)
 22. [Overrides](#22-overrides)
 23. [Checking a module](#23-checking-a-module)
-24. [Module API 3](#24-module-api-3)
+24. [Older module APIs](#24-older-module-apis)
 25. [Change log](#25-change-log)
 
 ## 1. Numbers that version things
@@ -59,8 +61,8 @@ Several numbers move independently. None of them is the server's version.
 
 | Number | Where | Today | What raises it |
 |---|---|---|---|
-| Specification | This document's title | 4.0 | The major part follows the module API. The minor part rises when the specification is corrected or extended without changing the API. |
-| Module API | `api` in `module.json`; `wittymodule.API` and `MinAPI`; the server's own `API` and `MinAPI` in `internal/modules/sdui.go` | 4, and servers take 3 to 4 | Adding to the contract between a server and its modules raises `API`. Breaking it raises `MinAPI` too, which disables older modules, so that is rare. |
+| Specification | This document's title | 5.0 | The major part follows the module API. The minor part rises when the specification is corrected or extended without changing the API. |
+| Module API | `api` in `module.json`; `wittymodule.API` and `MinAPI`; the server's own `API` and `MinAPI` in `internal/modules/sdui.go` | 5, and servers take 5 only | Adding to the contract between a server and its modules raises `API`. Breaking it raises `MinAPI` too, which disables older modules, so that is rare. |
 | Catalogue format | `format` in `catalog.json`; `wittymodule.CatalogFormat` | 1 | A change readers can't ignore. Adding a field doesn't raise it. |
 | SDUI file format | `format` and `formatVersion` in `sdui.json` | `wittymodule-sdui`, 1 | A change in the file's shape. |
 | SDUI catalogue revision | `catalog` in `sdui.json`; `sdui.CatalogRevision` | 2 | New components, sources or properties in the server's SDUI catalogue. |
@@ -72,11 +74,12 @@ The module API, in short:
 |---|---|---|
 | 1 | The manifest, helpers and the helper protocol | No longer |
 | 2 | Web bundles, programs, a helper's attached part, streams | No longer |
-| 3 | Notifications, services, permissions, pages, a helper's part in the browser; nothing of a module compiled into the server | 0.6.0-alpha and later |
-| 4 | `sdui.json` in every installed module; `status` and `statusNote` | 0.8.0-alpha and later |
+| 3 | Notifications, services, permissions, pages, a helper's part in the browser; nothing of a module compiled into the server | No longer |
+| 4 | `sdui.json` in every installed module; `status` and `statusNote` | No longer |
+| 5 | `integration.json` in every installed module: its routes, web part, data, lifecycle and scan hooks; the host API | 0.8.0-alpha and later |
 
-Nothing in API 3 changed in API 4, so a version built for API 3 still runs on a server that takes 4.
-[Section 24](#24-module-api-3) lists what is different for one.
+API 5 broke the contract, so it is also the oldest API a server takes: there is no backwards
+compatibility ([section 24](#24-older-module-apis)).
 
 ## 2. Identity and naming
 
@@ -227,9 +230,9 @@ A version fits a server when all of these hold (`Manifest.Supports`, with the se
 3. **The server ≤ `maxServer`.** An exact version means exactly that, pre-releases of it included
    (`0.8.0-rc1` ≤ `0.8.0`, `0.8.1` is past it). A series `A.B.x` covers every release and
    pre-release whose first two numbers are `A.B`; `A.x` covers every one whose first is `A`.
-4. **`MinAPI` ≤ `api` ≤ `API`**, the server's own numbers: 3 to 4 on 0.8.0-alpha. An older `api`
-   is refused with words saying it was built before modules became separate from the server; a
-   newer one with words saying it needs a newer server.
+4. **`MinAPI` ≤ `api` ≤ `API`**, the server's own numbers: 5 to 5 on 0.8.0-alpha. An older `api`
+   is refused with words saying to install a version built for module API 5; a newer one with
+   words saying it needs a newer server.
 
 **How a server reads `0.N.x`.** `wittymodule` reads a range exactly as above. A server reads any
 pre-1.0 series `0.N.x` as `0.x` (`internal/modules/widen.go`), because before 1.0 the module API
@@ -310,7 +313,7 @@ untrusted.
 **Hello.** The helper's first line names itself:
 
 ```
-helper → {"module":"wittyphotos","version":"0.4.0","api":4}
+helper → {"module":"wittyphotos","version":"0.4.0","api":5}
 ```
 
 `module`, `version` and `api` must equal the manifest's, or an install fails and a start is refused.
@@ -848,25 +851,19 @@ For a catalogue: `wittymodule catalog-check [-pub key] catalog.json`, and in Wit
 `scripts/check-api.mjs`, which checks what a server decides: the module API, an API-4 version's
 `minServer`, and `status` with its note.
 
-## 24. Module API 3
+## 24. Older module APIs
 
-A version built for API 3 still runs on a server that takes API 4. It differs in these ways:
-
-- **`sdui.json` is optional.** One that carries it anyway has it checked and used exactly as for API
-  4; one that doesn't adds nothing to the apps through SDUI, and its manifest `pages` are drawn by its
-  web part in the web app only.
-- **No `incomplete` override for a missing `sdui.json`**, since none is required.
-- `status` and `statusNote` mean the same in an API 3 manifest; a server older than 0.8.0-alpha
-  ignores them.
-- `minServer` is at least `0.6.0-alpha`; `maxServer` is read by a 0.8 server as described in
-  [section 6](#6-compatibility), so an API 3 version with `0.6.x` fits 0.8.0-alpha.
-- Everything else here — identity, the manifest, delivery, permissions, the helper protocol,
-  services, releases, signing, the catalogue, withdrawals, forks and overrides — is the same.
-
-API 1 and 2 versions are refused by every current server, with words saying to install a version made
-for WittyMediaServer 0.6.0-alpha or newer.
+A server takes module API 5 only. A version built for API 1 to 4 is refused at install, even with an
+override, and isn't used, with words saying to install a version built for module API 5;
+`wittymodule check` refuses its manifest too. A module moves to API 5 by carrying `integration.json`
+beside `module.json` and `sdui.json` (WittyMediaServer docs/MODULES-API5.md).
 
 ## 25. Change log
+
+**5.0** (module API 5, WittyMediaServer 0.8.0-alpha)
+
+- A server takes module API 5 only; API 3 and 4 are no longer taken ([section 24](#24-older-module-apis)).
+- Every installed module carries `integration.json` as well as `sdui.json`.
 
 **4.0** (module API 4, WittyMediaServer 0.8.0-alpha)
 

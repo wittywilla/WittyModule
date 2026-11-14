@@ -28,7 +28,7 @@ func fakeRelease(t *testing.T, ver string) string {
 	return fakeReleaseWith(t, ver, playUI, "")
 }
 
-// extraInside adds files to the archives fakeReleaseWith writes.
+// extraInside adds files to the archives fakeReleaseWith writes, or leaves one out ("").
 var extraInside map[string]string
 
 // fakeReleaseWith writes a release whose archive holds ui as its sdui.json ("" for none), and
@@ -36,15 +36,20 @@ var extraInside map[string]string
 func fakeReleaseWith(t *testing.T, ver, ui, more string) string {
 	t.Helper()
 	dir := t.TempDir()
-	man := fmt.Sprintf(`{"id":"wittyplay","name":"WittyPlay","version":%q,"license":"Apache-2.0","repo":"wittywilla/WittyPlay","delivery":"helper","entry":"wittyplay-module","api":%d,"minServer":"0.6.0-alpha","maxServer":"0.6.x","summary":"Games.","group":"play"%s}`, ver, wittymodule.SDUIFromAPI, more)
+	man := fmt.Sprintf(`{"id":"wittyplay","name":"WittyPlay","version":%q,"license":"Apache-2.0","repo":"wittywilla/WittyPlay","delivery":"helper","entry":"wittyplay-module","api":%d,"minServer":"0.6.0-alpha","maxServer":"0.6.x","summary":"Games.","group":"play"%s}`, ver, wittymodule.API, more)
 	manName := wittymodule.ManifestName("wittyplay", ver)
 	top := wittymodule.TopFolder("wittyplay", ver, "linux", "amd64")
-	inside := map[string][]byte{wittymodule.ManifestFile: []byte(man), "wittyplay-module": []byte("a program")}
+	inside := map[string][]byte{wittymodule.ManifestFile: []byte(man), "wittyplay-module": []byte("a program"),
+		wittymodule.IntegrationFile: []byte(`{"format":"wittymodule-integration","formatVersion":1,"module":"wittyplay"}`)}
 	if ui != "" {
 		inside[wittymodule.SDUIFile] = []byte(ui)
 	}
-	for name, content := range extraInside {
-		inside[name] = []byte(content)
+	for name, content := range extraInside { // "" leaves a file out
+		if content == "" {
+			delete(inside, name)
+		} else {
+			inside[name] = []byte(content)
+		}
 	}
 	archive, err := archiveBytes("linux", top, map[string]bool{"wittyplay-module": true}, inside)
 	if err != nil {
@@ -288,7 +293,7 @@ func TestCatalogAddTakesIntegration(t *testing.T) {
 		t.Fatalf("integration summary: %+v", v.Integration)
 	}
 
-	extraInside = nil
+	extraInside = map[string]string{wittymodule.IntegrationFile: ""}
 	dir = fakeReleaseWith(t, "0.5.1", playUI, api5)
 	pub = signRelease(t, dir, "0.5.1")
 	if err := catalogAdd(cat, "", "", pub, "WittyWilla", []string{dir}); err == nil || !strings.Contains(err.Error(), wittymodule.IntegrationFile) {

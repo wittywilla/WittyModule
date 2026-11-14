@@ -5,7 +5,7 @@
   "license": "AGPL-3.0-or-later",
   "repo": "wittywilla/WittyModule",
   "delivery": "library",
-  "api": 3,
+  "api": 5,
   "minServer": "0.6.0-alpha",
   "maxServer": "0.8.x",
   "group": "system",

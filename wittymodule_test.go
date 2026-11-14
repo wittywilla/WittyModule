@@ -58,7 +58,7 @@ func TestSupportsAPI(t *testing.T) {
 		t.Errorf("too new: %v", err)
 	}
 	m.API = 1
-	if err := m.Supports("0.4.0", 2, 3); err == nil || !strings.Contains(err.Error(), "too old") || !strings.Contains(err.Error(), FirstServer) {
+	if err := m.Supports("0.4.0", 2, 3); err == nil || !strings.Contains(err.Error(), "too old") || !strings.Contains(err.Error(), "built for module API 2") {
 		t.Errorf("too old: %v", err)
 	}
 	if err := m.Supports("0.4.0", 1, 3); err != nil {
@@ -138,7 +138,7 @@ func TestStatus(t *testing.T) {
 		t.Errorf("no status reads as %q", m.StatusOrStable())
 	}
 	// An older server ignores the fields: a manifest with them still parses with the same shape.
-	raw := `{"id":"wittyx","name":"X","version":"0.1.0","repo":"a/b","delivery":"web","entry":"x.js","api":4,"minServer":"0.8.0-alpha","maxServer":"0.8.x","status":"incomplete","statusNote":"No settings yet."}`
+	raw := `{"id":"wittyx","name":"X","version":"0.1.0","repo":"a/b","delivery":"web","entry":"x.js","api":5,"minServer":"0.8.0-alpha","maxServer":"0.8.x","status":"incomplete","statusNote":"No settings yet."}`
 	m, err := ParseManifest([]byte(raw))
 	if err != nil || m.Status != StatusIncomplete || m.StatusNote != "No settings yet." {
 		t.Fatalf("%+v %v", m, err)

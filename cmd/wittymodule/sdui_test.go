@@ -17,7 +17,8 @@ func webModule(t *testing.T, api int, ui string) string {
 		t.Fatal(err)
 	}
 	man := `{"id":"wittyx","name":"X","version":"0.1.0","repo":"wittywilla/WittyX","delivery":"web","entry":"index.js","api":` + string(rune('0'+api)) + `,"minServer":"0.8.0-alpha","maxServer":"0.8.x"}`
-	files := map[string]string{"module.json": man, "LICENSE": "l", "NOTICE": "n"}
+	files := map[string]string{"module.json": man, "LICENSE": "l", "NOTICE": "n",
+		"integration.json": `{"format":"wittymodule-integration","formatVersion":1,"module":"wittyx"}`}
 	if ui != "" {
 		files["sdui.json"] = ui
 	}
@@ -31,23 +32,20 @@ func webModule(t *testing.T, api int, ui string) string {
 
 const smallUI = `{"format":"wittymodule-sdui","formatVersion":1,"module":"wittyx","catalog":2,"theme":{"scope":"wittyx"}}`
 
-func TestCheckWantsSDUIFromAPI4(t *testing.T) {
-	if err := checkOne(webModule(t, 4, ""), ""); err == nil || !strings.Contains(err.Error(), "sdui.json") {
-		t.Errorf("API 4 without sdui.json: %v", err)
+func TestCheckWantsSDUI(t *testing.T) {
+	if err := checkOne(webModule(t, 5, ""), ""); err == nil || !strings.Contains(err.Error(), "sdui.json") {
+		t.Errorf("without sdui.json: %v", err)
 	}
-	if err := checkOne(webModule(t, 4, smallUI), ""); err != nil {
-		t.Errorf("API 4 with sdui.json: %v", err)
+	if err := checkOne(webModule(t, 5, smallUI), ""); err != nil {
+		t.Errorf("with sdui.json: %v", err)
 	}
-	if err := checkOne(webModule(t, 3, ""), ""); err != nil {
-		t.Errorf("API 3 without: %v", err)
-	}
-	if err := checkOne(webModule(t, 3, strings.Replace(smallUI, `"scope":"wittyx"`, `"scope":"wittytv"`, 1)), ""); err == nil {
-		t.Error("a wrong sdui.json passed because the API is 3")
+	if err := checkOne(webModule(t, 4, smallUI), ""); err == nil || !strings.Contains(err.Error(), "api 4") {
+		t.Errorf("API 4: %v", err)
 	}
 }
 
 func TestPackWebCarriesSDUI(t *testing.T) {
-	dir := webModule(t, 4, smallUI)
+	dir := webModule(t, 5, smallUI)
 	built := t.TempDir()
 	_ = os.WriteFile(filepath.Join(built, "index.js"), []byte("export default 1"), 0o644)
 	out := t.TempDir()
@@ -69,7 +67,7 @@ func TestPackWebCarriesSDUI(t *testing.T) {
 
 func TestCheckRefusesSourcesOnAWebBundle(t *testing.T) {
 	ui := strings.Replace(smallUI, `"theme":{"scope":"wittyx"}`, `"theme":{"scope":"wittyx"},"sources":[{"type":"wittyx.picks","label":"Picks","yields":["game"],"cardStyle":"square","paged":false,"since":2}]`, 1)
-	if err := checkOne(webModule(t, 4, ui), ""); err == nil || !strings.Contains(err.Error(), "only a helper") {
+	if err := checkOne(webModule(t, 5, ui), ""); err == nil || !strings.Contains(err.Error(), "only a helper") {
 		t.Errorf("a web bundle with sources: %v", err)
 	}
 }

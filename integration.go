@@ -27,10 +27,6 @@ import (
 // IntegrationFile is its name in a module's folder and at the root of every archive.
 const IntegrationFile = "integration.json"
 
-// IntegrationFromAPI is the module API from which a module that adds anything to a server must
-// carry integration.json.
-const IntegrationFromAPI = 5
-
 // MaxIntegration is the most a server reads of one.
 const MaxIntegration = 256 << 10
 
@@ -281,11 +277,12 @@ const (
 	HostAPI  = "host" // the host API a module calls back on
 )
 
-// NeedsIntegration reports whether a version must carry integration.json.
+// NeedsIntegration reports whether a version must carry integration.json: one a server runs or
+// loads.
 func (m *Manifest) NeedsIntegration() bool {
 	switch m.Delivery {
 	case DeliveryHelper, DeliveryProgram, DeliveryWeb:
-		return m.API >= IntegrationFromAPI
+		return true
 	}
 	return false
 }

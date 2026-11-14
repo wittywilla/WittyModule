@@ -153,11 +153,7 @@ func TestNeedsIntegration(t *testing.T) {
 	if !m.NeedsIntegration() {
 		t.Error("API 5 helper needs integration.json")
 	}
-	m.API = 4
-	if m.NeedsIntegration() {
-		t.Error("API 4 doesn't")
-	}
-	m.API, m.Delivery = 5, DeliveryLibrary
+	m.Delivery = DeliveryLibrary
 	if m.NeedsIntegration() {
 		t.Error("a library doesn't")
 	}

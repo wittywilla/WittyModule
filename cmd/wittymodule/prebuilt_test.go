@@ -18,10 +18,12 @@ func TestPackPrebuiltLeavesOutWhatWasntBuilt(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, text := range map[string]string{
-		"CMakeLists.txt": "",
-		"module.json":    `{"id":"wittyother","name":"WittyOther","version":"1.2.3","repo":"someone/WittyOther","license":"GPL-3.0","delivery":"program","entry":"other-host","api":3,"minServer":"0.6.0-alpha","maxServer":"0.6.x"}`,
-		"LICENSE":        "license",
-		"NOTICE":         "notice",
+		"CMakeLists.txt":   "",
+		"module.json":      `{"id":"wittyother","name":"WittyOther","version":"1.2.3","repo":"someone/WittyOther","license":"GPL-3.0","delivery":"program","entry":"other-host","api":5,"minServer":"0.8.0-alpha","maxServer":"0.8.x"}`,
+		"LICENSE":          "license",
+		"NOTICE":           "notice",
+		"sdui.json":        `{"format":"wittymodule-sdui","formatVersion":1,"module":"wittyother","catalog":2,"theme":{"scope":"wittyother"}}`,
+		"integration.json": `{"format":"wittymodule-integration","formatVersion":1,"module":"wittyother"}`,
 	} {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0o644); err != nil {
 			t.Fatal(err)

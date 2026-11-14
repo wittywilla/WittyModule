@@ -244,7 +244,7 @@ func inspect(dir, server string) (problems, warnings []string) {
 			bad(manFile, "version", "version %s differs from package.json's %s", m.Version, p.Version)
 		}
 	}
-	// Its SDUI: required from module API 4, checked whenever it is there.
+	// Its SDUI: required of anything a server runs or loads, checked whenever it is there.
 	if b, err := os.ReadFile(uiFile); err == nil {
 		ui, err := sdui.Parse(b)
 		if err != nil {
@@ -268,7 +268,7 @@ func inspect(dir, server string) (problems, warnings []string) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		bad(uiFile, "", "can't be read: %v", err)
 	} else if m.NeedsSDUI() {
-		bad(uiFile, "", "it is built for module API %d, where a module carries its own SDUI, and it has no %s beside %s (see WittyMediaServer docs/SDUI-MODULES.md)", m.API, wittymodule.SDUIFile, wittymodule.ManifestFile)
+		bad(uiFile, "", "it has no %s beside %s, which a module carries with its own SDUI (see WittyMediaServer docs/SDUI-MODULES.md)", wittymodule.SDUIFile, wittymodule.ManifestFile)
 	}
 	// Its integration (module API 5): required from that API for anything a server runs, checked
 	// whenever it is there.

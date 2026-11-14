@@ -58,6 +58,11 @@ type Item struct {
 	Title   string            `json:"title"`
 	Facets  map[string]string `json:"facets,omitempty"` // console, …
 	Files   []File            `json:"files,omitempty"`
+	// VersionOf is the item this one is another version of (a region, a revision), as its
+	// module's scan said, and VersionLabel what this version is called. The host's Item says
+	// them; a route's X-Witty-Item doesn't.
+	VersionOf    int64  `json:"versionOf,omitempty"`
+	VersionLabel string `json:"versionLabel,omitempty"`
 }
 
 // File is one of an item's files. Path is for reading only: the module never writes there.

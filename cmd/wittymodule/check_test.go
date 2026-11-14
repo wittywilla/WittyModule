@@ -22,7 +22,7 @@ func withManifest(t *testing.T, dir string, edit func(string) string) {
 // Every problem is listed, one line each, located by file and field or JSON path.
 func TestCheckListsEveryProblemWhereItIs(t *testing.T) {
 	ui := strings.Replace(smallUI, `"theme":{"scope":"wittyx"}`, `"theme":{"scope":"wittytv","tokens":{"accent":"red"}}`, 1)
-	dir := webModule(t, 4, ui)
+	dir := webModule(t, 5, ui)
 	withManifest(t, dir, func(s string) string {
 		s = strings.Replace(s, `"maxServer":"0.8.x"`, `"maxServer":"0.y.x","permissions":["network","root"],"status":"done"`, 1)
 		return strings.Replace(s, `"name":"X"`, `"name":""`, 1)
@@ -63,19 +63,19 @@ func TestCheckListsEveryProblemWhereItIs(t *testing.T) {
 }
 
 func TestCheckLocatesTheFolderTheSDUIAndTheRange(t *testing.T) {
-	dir := webModule(t, 4, "")
+	dir := webModule(t, 5, "")
 	problems, _ := inspect(dir, "")
-	if len(problems) != 1 || !strings.HasPrefix(problems[0], filepath.Join(dir, "sdui.json")+": it is built for module API 4") {
+	if len(problems) != 1 || !strings.HasPrefix(problems[0], filepath.Join(dir, "sdui.json")+": it has no sdui.json") {
 		t.Errorf("no sdui.json: %v", problems)
 	}
 
-	dir = webModule(t, 4, `{"format":"wittymodule-sdui","formatVersion":1,"module":"wittyx","catalog":2,"theme":{"scope":"wittyx"},"script":"x"}`)
+	dir = webModule(t, 5, `{"format":"wittymodule-sdui","formatVersion":1,"module":"wittyx","catalog":2,"theme":{"scope":"wittyx"},"script":"x"}`)
 	problems, _ = inspect(dir, "")
 	if len(problems) != 1 || !strings.HasPrefix(problems[0], filepath.Join(dir, "sdui.json")+": can't be read: ") {
 		t.Errorf("unknown field: %v", problems)
 	}
 
-	dir = webModule(t, 4, smallUI)
+	dir = webModule(t, 5, smallUI)
 	for server, field := range map[string]string{"0.7.0": "minServer", "0.9.0": "maxServer", "dev": ""} {
 		problems, _ = inspect(dir, server)
 		want := filepath.Join(dir, "module.json") + ": "
@@ -98,7 +98,7 @@ func TestCheckLocatesTheFolderTheSDUIAndTheRange(t *testing.T) {
 // An unfinished module passes, with a warning naming its status and note.
 func TestCheckWarnsOfAnUnfinishedModule(t *testing.T) {
 	for _, status := range []string{"experimental", "incomplete"} {
-		dir := webModule(t, 4, smallUI)
+		dir := webModule(t, 5, smallUI)
 		withManifest(t, dir, func(s string) string {
 			return strings.Replace(s, `"maxServer":"0.8.x"`, `"maxServer":"0.8.x","status":"`+status+`","statusNote":"No settings page yet."`, 1)
 		})
@@ -114,7 +114,7 @@ func TestCheckWarnsOfAnUnfinishedModule(t *testing.T) {
 		}
 	}
 	// One with no note doesn't pass: the note is what the warning is made of.
-	dir := webModule(t, 4, smallUI)
+	dir := webModule(t, 5, smallUI)
 	withManifest(t, dir, func(s string) string {
 		return strings.Replace(s, `"maxServer":"0.8.x"`, `"maxServer":"0.8.x","status":"incomplete"`, 1)
 	})
@@ -122,7 +122,7 @@ func TestCheckWarnsOfAnUnfinishedModule(t *testing.T) {
 		t.Errorf("no note: %v", problems)
 	}
 	// Beta and stable are nothing to warn of.
-	dir = webModule(t, 4, smallUI)
+	dir = webModule(t, 5, smallUI)
 	withManifest(t, dir, func(s string) string {
 		return strings.Replace(s, `"maxServer":"0.8.x"`, `"maxServer":"0.8.x","status":"beta"`, 1)
 	})
