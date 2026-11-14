@@ -376,3 +376,9 @@ func (c *Client) LegacyFile(ctx context.Context, path string) ([]byte, error) {
 	}
 	return io.ReadAll(io.LimitReader(resp.Body, 64<<20))
 }
+
+// Audit writes a row of the server's audit log: who (on), what, to what. The server keeps it, so it
+// stays whatever happens to the module.
+func (c *Client) Audit(ctx context.Context, on On, action, core, detail string) error {
+	return c.Do(ctx, on, "POST", "/audit", map[string]string{"action": action, "core": core, "detail": detail}, nil)
+}
