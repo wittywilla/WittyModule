@@ -40,6 +40,8 @@ export interface ModuleApi {
 export type GameArtArgs = { itemId: string; console: string; image: string; title: string }
 export type CardArgs = GameArtArgs & { kind: string }
 export interface CardParts {
+  /** Wraps the app's frame and provides the card contexts itself (sdui.GameArtContext, sdui.CardRouteContext). */
+  Provider?: ComponentType<{ children: ReactNode }>
   art?(a: CardArgs): ReactNode | null
   detail?(a: CardArgs): ReactNode
   cover?(a: CardArgs): ReactNode
@@ -56,7 +58,8 @@ export interface Registration {
   players?: Record<string, ComponentType<{ host: ModuleHost; itemId: string }>>
   readers?: Record<string, ComponentType<{ host: ModuleHost }>>
   settings?: Record<string, ComponentType<{ host: ModuleHost }>>
-  setup?: Record<string, ComponentType<{ host: ModuleHost; onDone: () => void }>>
+  /** A first-run step: given the setup wizard's own step props (next, back, info, …). */
+  setup?: Record<string, ComponentType<Record<string, unknown>>>
 }
 
 /** The host one module is given. */
@@ -94,6 +97,10 @@ export interface ModuleHost {
   input: { focusFirst(): boolean }
 }
 
+/** The app's own parts a bundle may import as `@wms/app/<path>` (kit/web/app-exports.json lists
+ * them and their exports). They are the app's code as it is: what a screen moved out of the app
+ * still uses. A part or an export is only ever added, until the next web host API. */
+
 /** globalThis.__wmsModuleHost: the shared libraries, and hostFor. A bundle never reads it
  * directly; the builder's stand-ins and register(host) do. */
 export interface HostGlobal {
@@ -107,4 +114,6 @@ export interface HostGlobal {
   pdfjsModule: unknown
   pdfWorkerUrl: string
   hostFor(module: string): ModuleHost
+  /** The app's own parts, by path. */
+  app: Record<string, Record<string, unknown>>
 }

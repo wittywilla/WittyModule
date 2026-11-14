@@ -301,7 +301,7 @@ func ParseIntegration(b []byte) (*Integration, error) {
 
 var (
 	routePath  = regexp.MustCompile(`^(/([a-z0-9][a-z0-9._-]*|\{[a-z][A-Za-z0-9]*(\.\.\.)?\}))+/?$`)
-	webPath    = regexp.MustCompile(`^(/([a-z0-9][a-z0-9._-]*|:[a-z][A-Za-z0-9]*|\*))+$`)
+	webPath    = regexp.MustCompile(`^(/([a-z0-9][a-z0-9._-]*\*?|:[a-z][A-Za-z0-9]*|\*))+$`) // a segment may end in * (/page/wittyplay-*)
 	idName     = regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`)
 	kindName   = regexp.MustCompile(`^[a-z][a-z0-9]{0,31}$`)
 	rangeExpr  = regexp.MustCompile(`^(>=|<=|>|<|=)?\d+( (>=|<=|>|<)\d+)?$`)
