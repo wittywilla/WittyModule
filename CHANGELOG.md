@@ -3,6 +3,11 @@
 What changed in WittyModule, newest first. What changed before it had a repository of its own is in the
 [WittyMediaServer changelog](https://github.com/wittywilla/WittyMediaServer/blob/master/CHANGELOG.md).
 
+## 0.5.2
+
+- **A module's SDUI can declare its own commands.** `sdui.Module.Commands` (`sdui.Command`, `sdui.CommandParam`, the server's `CommandSpec`) lists the actions a module's screens use: each is `<module>.<name>`, calls one of the module's own routes (`/api/modules/<module>/…`) with its method, body and parameters, and is checked as the server checks it. A server merges them into its live catalogue, so the apps run them without knowing the module.
+- `sdui/core` follows the server: a dock entry can be `current` (`DockEntry.Current`), so a page under a dock destination (a store under Settings) lights it.
+
 ## 0.5.1
 
 - **A module's SDUI sources know who is asking, and its cards can carry everything the server's do.** `sdui.Viewer.User` is the account a page is for, so a source can answer with that person's own things (what they played, their friends, their saves). `sdui.Item` is now the server's own card (`sdui/core`'s `Item`), so a module's items carry a row's switch or choice (`Control`), what tapping does (`Action`), the text at its end (`Trailing`), a detail panel's buttons (`Actions`), a game's other names (`Titles`) and the rest; `Action`, `Control`, `ItemAction`, `Titles` and `Programme` are the server's types too. Needs a server that sends `viewer.user` (WittyMediaServer 0.9.0-alpha).
