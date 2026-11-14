@@ -25,6 +25,9 @@ const (
 	HeaderFeatures = "X-Witty-Features"
 	// HeaderKind is the profile's kind: adult, kids or guest (a guest can only look).
 	HeaderKind = "X-Witty-Kind"
+	// HeaderConfirmed is "1" when the person gave their password with this request, and the
+	// server found it right (a route with "confirm").
+	HeaderConfirmed = "X-Witty-Confirmed"
 )
 
 // Identity is who a request to a module route is from.
@@ -33,6 +36,8 @@ type Identity struct {
 	Admin   bool
 	Profile string
 	Kind    string // adult, kids, guest
+	// Confirmed: the person gave their password with this request and it was right.
+	Confirmed bool
 	// Item is the item its route names, when it names one.
 	Item *Item
 }
@@ -56,7 +61,7 @@ type File struct {
 // Who reads who is asking. A request with no user wasn't a signed-in person's (a ticket route,
 // or something else on this machine), and a route for people refuses it.
 func Who(r *http.Request) Identity {
-	id := Identity{Admin: r.Header.Get(HeaderAdmin) == "1", Profile: r.Header.Get(HeaderProfile), Kind: r.Header.Get(HeaderKind)}
+	id := Identity{Admin: r.Header.Get(HeaderAdmin) == "1", Profile: r.Header.Get(HeaderProfile), Kind: r.Header.Get(HeaderKind), Confirmed: r.Header.Get(HeaderConfirmed) == "1"}
 	id.User, _ = strconv.ParseInt(r.Header.Get(HeaderUser), 10, 64)
 	if h := r.Header.Get(HeaderItem); h != "" {
 		if b, err := base64.RawURLEncoding.DecodeString(h); err == nil {

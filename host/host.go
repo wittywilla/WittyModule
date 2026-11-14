@@ -154,6 +154,9 @@ type Hello struct {
 	Module string         `json:"module"`
 	Server string         `json:"server"`
 	Offers map[string]int `json:"offers"`
+	// Machine is what whoever runs the machine has allowed, beyond the server's own settings:
+	// "gamingCustomCores" (the config file allows custom cores, and nothing locks them off).
+	Machine map[string]bool `json:"machine,omitempty"`
 }
 
 // Hello asks.

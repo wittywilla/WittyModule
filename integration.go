@@ -96,6 +96,11 @@ type Route struct {
 	Limits *Limits `json:"limits,omitempty"`
 	// CSP is a policy for an answer that is a page: "sandboxed-page" only, for ticket routes.
 	CSP string `json:"csp,omitempty"`
+	// Confirm: a request may carry the person's password (X-WMS-Confirm-Password, and
+	// X-WMS-Confirm-Code with two-factor sign-in). The server checks it, refuses a wrong one
+	// itself (403), and tells the module only that it was right (X-Witty-Confirmed: 1). The
+	// password never reaches the module, on this route or any other.
+	Confirm bool `json:"confirm,omitempty"`
 }
 
 // Limits on one route.
