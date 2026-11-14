@@ -220,6 +220,12 @@ type ItemAction = core.ItemAction
 // Titles are a game's other names.
 type Titles = core.Titles
 
+// Command is one of a module's own commands (the server's CommandSpec).
+type Command = core.CommandSpec
+
+// CommandParam is one value a command takes besides the item.
+type CommandParam = core.CommandParam
+
 // EnumOption is one choice of a property or facet.
 type EnumOption struct {
 	Value string `json:"value"`
@@ -314,6 +320,9 @@ type Module struct {
 	// NativeView (the module's web bundle, for one); every other app draws the
 	// NativeView's sections instead.
 	Views []ModuleView `json:"views,omitempty"`
+	// Commands are the module's own commands, run by its pages and items: each <module>.<name>, on
+	// the module's own routes (/api/modules/<module>/…). See the server's docs/SDUI-MODULES.md.
+	Commands []Command `json:"commands,omitempty"`
 	// Navigation entries the module adds to the main menu.
 	Navigation []NavItem `json:"navigation,omitempty"`
 	// Settings describe the module's settings, which every app's own Settings
