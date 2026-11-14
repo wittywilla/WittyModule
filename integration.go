@@ -54,6 +54,20 @@ type Integration struct {
 	Data      *DataPart  `json:"data,omitempty"`
 	Lifecycle *Lifecycle `json:"lifecycle,omitempty"`
 	Live      *LivePart  `json:"live,omitempty"`
+	// Network is what the module reaches on the internet by itself.
+	Network *NetworkPart `json:"network,omitempty"`
+}
+
+// NetworkPart lists every host a module contacts by itself, each with why: shown at install,
+// on the server's privacy list, and enforced where a system's sandbox can.
+type NetworkPart struct {
+	Hosts []NetworkHost `json:"hosts,omitempty"`
+}
+
+// NetworkHost is one host.
+type NetworkHost struct {
+	Host string `json:"host"` // api.example.com, or *.example.com
+	Why  string `json:"why"`  // in plain words, at most 200 characters
 }
 
 // IntegrationFormat is integration.json's format.
@@ -162,11 +176,38 @@ type SettingsTab struct {
 	Search []string `json:"search,omitempty"` // words Settings' search finds it by
 }
 
-// SetupStep is a step of the first-time setup the module draws.
+// SetupStep is a step of the first-run setup the module adds (and a "Finish setting up" step
+// later, for a module installed or upgraded after setup).
 type SetupStep struct {
-	ID    string `json:"id"`
-	After string `json:"after,omitempty"`
+	ID     string     `json:"id"`
+	Title  string     `json:"title,omitempty"`
+	After  string     `json:"after,omitempty"`  // a built-in step it goes after
+	Before string     `json:"before,omitempty"` // or before; not both
+	When   *SetupWhen `json:"when,omitempty"`
+	// Page is an SDUI page of the module's (sdui.json) that is the step's form, so every app
+	// can draw it; a web bundle may register a richer component for the same id.
+	Page string `json:"page,omitempty"`
+	// Saves names what the step may change: the module's own settings keys.
+	Saves []string `json:"saves,omitempty"`
+	// Later says where the step lives in Settings afterwards.
+	Later *SetupLater `json:"later,omitempty"`
+	// Version is raised when the step changes enough to be shown again to a server that did it.
+	Version int `json:"version,omitempty"`
 }
+
+// SetupWhen is when a step is shown.
+type SetupWhen struct {
+	LibraryKinds []string `json:"libraryKinds,omitempty"` // such a library exists or is being added
+}
+
+// SetupLater is a step's place in Settings.
+type SetupLater struct {
+	Where string `json:"where"`
+	To    string `json:"to"`
+}
+
+// SetupAnchors are the built-in steps a module's step may name.
+var SetupAnchors = []string{"modules", "libraries", "details", "people", "remote", "ready"}
 
 // NavFold folds the menu entries of a kind of library into one of the module's.
 type NavFold struct {
@@ -265,6 +306,7 @@ var (
 	kindName   = regexp.MustCompile(`^[a-z][a-z0-9]{0,31}$`)
 	rangeExpr  = regexp.MustCompile(`^(>=|<=|>|<|=)?\d+( (>=|<=|>|<)\d+)?$`)
 	sizeExpr   = regexp.MustCompile(`^(\d+)(B|KB|MB|GB)$`)
+	hostName   = regexp.MustCompile(`^(\*\.)?([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
 	pathParams = regexp.MustCompile(`\{([a-z][A-Za-z0-9]*)(\.\.\.)?\}`)
 )
 
@@ -426,8 +468,32 @@ func (in *Integration) Check(m *Manifest) []Problem {
 			}
 		}
 		for i, s := range w.Setup {
+			f := fmt.Sprintf("web.setup[%d]", i)
 			if !idName.MatchString(s.ID) {
-				add(fmt.Sprintf("web.setup[%d].id", i), "%q isn't an id", s.ID)
+				add(f+".id", "%q isn't an id", s.ID)
+			}
+			if len(s.Title) > 40 {
+				add(f+".title", "at most 40 characters")
+			}
+			if s.After != "" && s.Before != "" {
+				add(f, "after or before, not both")
+			}
+			for _, a := range []string{s.After, s.Before} {
+				if a != "" && !slices.Contains(SetupAnchors, a) {
+					add(f, "%q isn't a built-in step a module can name (%s)", a, strings.Join(SetupAnchors, ", "))
+				}
+			}
+			if s.Before == "modules" {
+				add(f+".before", "a module's step can't come before modules are chosen")
+			}
+			if s.After == "ready" {
+				add(f+".after", "nothing comes after ready")
+			}
+			if s.Page != "" && s.Page != m.ID && !strings.HasPrefix(s.Page, m.ID+"-") {
+				add(f+".page", "must be one of this module's pages (%s or %s-…)", m.ID, m.ID)
+			}
+			if s.Later != nil && (s.Later.Where == "" || !strings.HasPrefix(s.Later.To, "/settings")) {
+				add(f+".later", "needs where, and a place under /settings")
 			}
 		}
 		for i, n := range w.NavFold {
@@ -469,6 +535,20 @@ func (in *Integration) Check(m *Manifest) []Problem {
 		}
 		if m.DataFormat == 0 {
 			add("data", "module.json must say its dataFormat")
+		}
+	}
+	if n := in.Network; n != nil {
+		if len(n.Hosts) > 0 && !m.Asks(PermissionNetwork) {
+			add("network", "lists hosts but doesn't ask for the network permission")
+		}
+		for i, h := range n.Hosts {
+			f := fmt.Sprintf("network.hosts[%d]", i)
+			if !hostName.MatchString(h.Host) {
+				add(f+".host", "%q isn't a host name such as api.example.com or *.example.com", h.Host)
+			}
+			if h.Why == "" || len(h.Why) > 200 {
+				add(f+".why", "say why, in at most 200 characters")
+			}
 		}
 	}
 	if l := in.Lifecycle; l != nil && l.Uninstall != "" && !slices.Contains([]string{"ask-keep-data", "keep-data", "remove-data"}, l.Uninstall) {
