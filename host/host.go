@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/wittywilla/wittymodule"
@@ -178,12 +179,18 @@ type Query struct {
 	Kind        string            // an item kind
 	Facets      map[string]string // console=snes
 	Search      string
+	IDs         []int64 // only these items (at most 500)
+	Sort        string  // added, rating, oldest or title; "" for by title
+	Desc        bool    // the other way round
+	MinRating   float64 // at least this score out of 10
+	Genre       string
+	Series      string // games of one franchise
 	Offset      int
 	Limit       int // at most 500
 }
 
-// Items lists the items a person may see that match, without their files.
-func (c *Client) Items(ctx context.Context, on On, q Query) ([]service.Item, error) {
+// values is the query's address.
+func (q Query) values() url.Values {
 	v := url.Values{}
 	if q.LibraryKind != "" {
 		v.Set("libraryKind", q.LibraryKind)
@@ -200,16 +207,61 @@ func (c *Client) Items(ctx context.Context, on On, q Query) ([]service.Item, err
 	if q.Search != "" {
 		v.Set("search", q.Search)
 	}
+	if len(q.IDs) > 0 {
+		ids := make([]string, len(q.IDs))
+		for i, id := range q.IDs {
+			ids[i] = strconv.FormatInt(id, 10)
+		}
+		v.Set("ids", strings.Join(ids, ","))
+	}
+	if q.Sort != "" {
+		v.Set("sort", q.Sort)
+	}
+	if q.Desc {
+		v.Set("desc", "1")
+	}
+	if q.MinRating > 0 {
+		v.Set("minRating", strconv.FormatFloat(q.MinRating, 'f', -1, 64))
+	}
+	if q.Genre != "" {
+		v.Set("genre", q.Genre)
+	}
+	if q.Series != "" {
+		v.Set("series", q.Series)
+	}
 	if q.Offset > 0 {
 		v.Set("offset", strconv.Itoa(q.Offset))
 	}
 	if q.Limit > 0 {
 		v.Set("limit", strconv.Itoa(q.Limit))
 	}
+	return v
+}
+
+// Items lists the items a person may see that match, without their files.
+func (c *Client) Items(ctx context.Context, on On, q Query) ([]service.Item, error) {
 	var out struct {
 		Items []service.Item `json:"items"`
 	}
+	return out.Items, c.Do(ctx, on, "GET", "/items?"+q.values().Encode(), nil, &out)
+}
+
+// ItemsFull lists the same items as the server's own brief item JSON, as its GET /api/v1/items
+// gives each one (poster, rating, genres, progress …), for a module answering in that shape.
+func (c *Client) ItemsFull(ctx context.Context, on On, q Query) ([]json.RawMessage, error) {
+	v := q.values()
+	v.Set("full", "1")
+	var out struct {
+		Items []json.RawMessage `json:"items"`
+	}
 	return out.Items, c.Do(ctx, on, "GET", "/items?"+v.Encode(), nil, &out)
+}
+
+// Facets is what one games library holds as a person may see it (consoles, genres, decades …),
+// as the server's GET /api/v1/games/facets gives it.
+func (c *Client) Facets(ctx context.Context, on On, library int64) (json.RawMessage, error) {
+	var out json.RawMessage
+	return out, c.Do(ctx, on, "GET", "/items/facets?library="+strconv.FormatInt(library, 10), nil, &out)
 }
 
 // Library is one of the server's libraries of a kind the module serves.
@@ -237,6 +289,14 @@ func (c *Client) Counts(ctx context.Context, on On, libraryKind, facet string) (
 		Counts map[string]int `json:"counts"`
 	}
 	return out.Counts, c.Do(ctx, on, "GET", "/items/counts?libraryKind="+url.QueryEscape(libraryKind)+"&by="+url.QueryEscape(facet), nil, &out)
+}
+
+// CountsIn is Counts in one of the module's libraries.
+func (c *Client) CountsIn(ctx context.Context, on On, library int64, facet string) (map[string]int, error) {
+	var out struct {
+		Counts map[string]int `json:"counts"`
+	}
+	return out.Counts, c.Do(ctx, on, "GET", "/items/counts?library="+strconv.FormatInt(library, 10)+"&by="+url.QueryEscape(facet), nil, &out)
 }
 
 // May reports whether a person may use a feature (games, livetv …) now: their profile's
@@ -396,6 +456,23 @@ func Needs(in *wittymodule.Integration, offers map[string]int) error {
 // stays whatever happens to the module.
 func (c *Client) Audit(ctx context.Context, on On, action, core, detail string) error {
 	return c.Do(ctx, on, "POST", "/audit", map[string]string{"action": action, "core": core, "detail": detail}, nil)
+}
+
+// AuditRow is one row of the server's audit log.
+type AuditRow struct {
+	At     int64  `json:"at"` // Unix seconds
+	User   string `json:"user"`
+	Action string `json:"action"`
+	Core   string `json:"core,omitempty"`
+	Detail string `json:"detail,omitempty"`
+}
+
+// AuditLog is the module's own rows of the audit log, newest first: at most limit, up to 500.
+func (c *Client) AuditLog(ctx context.Context, limit int) ([]AuditRow, error) {
+	var out struct {
+		Rows []AuditRow `json:"rows"`
+	}
+	return out.Rows, c.Do(ctx, On{}, "GET", "/audit?limit="+strconv.Itoa(limit), nil, &out)
 }
 
 // Report is a module's word on its own version in use: Working after something that proves it
