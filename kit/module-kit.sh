@@ -71,7 +71,9 @@ web_package() { # <folder>
   local file="$1/package.json" description
   [ -f "$1/go.mod" ] && [ -f "$1/web/index.ts" ] || return 0
   if [ -f "$file" ]; then
-    sed -i -E "0,/\"version\": *\"[^\"]*\"/s//\"version\": \"$version\"/" "$file"
+    # perl, not sed -i: GNU and BSD (macOS) sed disagree on -i (BSD took -E as a backup suffix and
+    # left a stray file), and only GNU has 0,/re/. Without /g it changes only the first match.
+    VERSION="$version" perl -0pi -e 's/"version": *"[^"]*"/"version": "$ENV{VERSION}"/' "$file"
     return 0
   fi
   description=$(field description "$1/web/package.json")
@@ -205,6 +207,7 @@ To take a version back, run the *withdraw* workflow from the *Actions* tab. It a
   render "$templates/ci.yml" "$gen/ci.yml"
   # A program built with something other than Go keeps its own build, and packs what that made.
   [ -f "$dir/CMakeLists.txt" ] || render "$templates/release.yml" "$gen/release.yml"
+  render "$templates/tag.yml" "$gen/tag.yml"
   case " $words " in
     *" signed "*) render "$templates/withdraw.yml" "$gen/withdraw.yml" ;;
     *) rm -f "$gen/withdraw.yml" ;;
