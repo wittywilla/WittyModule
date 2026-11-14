@@ -65,6 +65,10 @@
       "lookupLogo",
       "useLogo"
     ],
+    "components/ConsoleMark": [
+      "ConsoleMark",
+      "StudioMark"
+    ],
     "components/HelpLink": [
       "HelpLink",
       "PageHelp",
@@ -80,6 +84,12 @@
     ],
     "components/ModuleMissing": [
       "ModuleMissing"
+    ],
+    "components/ShareDialog": [
+      "default"
+    ],
+    "components/UploadButton": [
+      "UploadButton"
     ],
     "components/WebLink": [
       "WebLink"
@@ -123,6 +133,25 @@
       "setLogSession",
       "setLogVersion",
       "watchPlayback"
+    ],
+    "gallery": [
+      "canPost",
+      "canReact",
+      "copyText",
+      "creatorArt",
+      "dayKey",
+      "fmtCount",
+      "fmtSize",
+      "monthName",
+      "photoFull",
+      "photoThumb",
+      "setReaction",
+      "takenDate",
+      "takenMonth",
+      "takenTime",
+      "timeAgo",
+      "uploadFile",
+      "videoThumb"
     ],
     "icons": [
       "IconActivity",
@@ -222,9 +251,12 @@
       "bundledModule",
       "lazyModule",
       "moduleView",
+      "readerKitOf",
+      "readerOf",
       "useBundledReader",
       "useModulePages",
-      "useModuleViews"
+      "useModuleViews",
+      "useReaderBundles"
     ],
     "myLimits": [
       "featureOff",
@@ -234,6 +266,9 @@
     "pages/SettingsPage": [
       "Libraries",
       "default"
+    ],
+    "pages/games/VirtualGames": [
+      "VirtualGames"
     ],
     "pages/settings/ModuleSettings": [
       "ModuleSettingsList",
@@ -280,6 +315,16 @@
       "stepNumber",
       "updateChoiceFrom",
       "updateSettings"
+    ],
+    "player/InlinePlayer": [
+      "default"
+    ],
+    "remote/PlayOnButton": [
+      "AudioPlayOn",
+      "PlayOnButton",
+      "PlayOnMenuItem",
+      "audioSource",
+      "queueOf"
     ],
     "remote/RemoteHost": [
       "default",
@@ -376,6 +421,41 @@
       "sectionId",
       "withIds"
     ],
+    "spec/specs/albums": [
+      "addToAlbumSpec",
+      "albumSpec",
+      "viewerAlbumSpec"
+    ],
+    "spec/specs/consoleCores": [
+      "coresSpec"
+    ],
+    "spec/specs/emulatorChoices": [
+      "emulatorChoicesSpec"
+    ],
+    "spec/specs/fixgame": [
+      "fixGameSpec",
+      "versionLinksSpec"
+    ],
+    "spec/specs/gameLibrary": [
+      "gameFiltersSpec",
+      "letterSpec",
+      "splitFilterId"
+    ],
+    "spec/specs/gameReview": [
+      "KIND_WORDS",
+      "bulkGroups",
+      "kindWord",
+      "reviewSpec"
+    ],
+    "spec/specs/manualEmulator": [
+      "manualSpec"
+    ],
+    "spec/specs/media": [
+      "autoplaySpec",
+      "bookActionsSpec",
+      "chaptersSpec",
+      "photoDetailsSpec"
+    ],
     "state": [
       "AppProvider",
       "ToastHost",
@@ -416,6 +496,12 @@
       "press",
       "setPageMove",
       "typing"
+    ],
+    "ui/Button": [
+      "Button",
+      "IconButton",
+      "LinkButton",
+      "btnClass"
     ],
     "ui/Overlay": [
       "AskHost",
