@@ -3,15 +3,18 @@
 What changed in WittyModule, newest first. What changed before it had a repository of its own is in the
 [WittyMediaServer changelog](https://github.com/wittywilla/WittyMediaServer/blob/master/CHANGELOG.md).
 
-## Unreleased
+## 0.5.0
 
-- **Module API 5** (`API = 5`; a server still takes 3 and 4): a module owns its whole feature and says what it adds to a server in `integration.json` beside `module.json` and `sdui.json` (`Integration`, `ParseIntegration`, `Check`, `Summary`): its HTTP routes (who may call each, the item it names, WebSockets, streams, limits,), what its web bundle adds to the web app (routes and full-screen frames, libraries of a kind it draws, card art and links, players, readers, Settings sections, setup steps, menu folding), its SDUI commands, its own database, its lifecycle calls (`lifecycle.install`, `.upgrade`, `.enable`, `.disable`, `.uninstall`) and the live sessions it reports. Required from API 5 for anything a server runs; `wittymodule check` checks it, `pack` ships it, and `catalog-add` refuses a release without one (or with one a server would refuse) and lists its summary as `integration`.
+Module API 5, for WittyMediaServer 0.9.0-alpha: a module owns its whole feature (its routes, data, screens and settings). A server of module API 5 takes API 5 modules only.
+
+- **Module API 5** (`API = 5`): a module owns its whole feature and says what it adds to a server in `integration.json` beside `module.json` and `sdui.json` (`Integration`, `ParseIntegration`, `Check`, `Summary`): its HTTP routes (who may call each, the item it names, WebSockets, streams, limits,), what its web bundle adds to the web app (routes and full-screen frames, libraries of a kind it draws, card art and links, players, readers, Settings sections, setup steps, menu folding), its SDUI commands, its own database, its lifecycle calls (`lifecycle.install`, `.upgrade`, `.enable`, `.disable`, `.uninstall`) and the live sessions it reports. Required from API 5 for anything a server runs; `wittymodule check` checks it, `pack` ships it, and `catalog-add` refuses a release without one (or with one a server would refuse) and lists its summary as `integration`.
 - `service.Config` gains `HTTP` (the module's routes, reached at `/http<path>` once the server has checked who may call them; `service.Who`, `People`, `Admins` read who is asking) and `Lifecycle`. A server of API 5 tells a service where its host API is as it starts it (`StartParams`, `service.Host`).
 - `kit/web`: the one builder for every module's web part (`build-bundle.mjs`, shared by all modules instead of a copy in each; Vite 8's `codeSplitting`, and the app's router shared as web host API 5 does), the types of what a bundle is given (`kit/web/host`, package `@wittywilla/wms-host`: `ModuleHost`, `Registration`, `CardParts`, …), and the app's design tokens (`kit/web/tokens.json`, from WittyMediaServer's `scripts/export-module-kit.mjs`) for a module's stylesheet to use as `var(--name)`.
 - `kit/web/app-exports.json` and `@wms/app/<path>` imports: a screen moved out of WittyMediaServer's web app keeps using the app's own parts it used (its API client, state, UI kit, settings rows…), read from the app at run time. The builder takes the module's own Vite, finds `web/index.ts`, and gives an app part's default export as it is.
 - `integration.json`: a web route's part may end in `*` (`/page/wittyplay-*`).
 - The SDUI core (a copy of WittyMediaServer's `pkg/sdui`) is now public, `sdui/core` (it was `sdui/internal/core`), so an app or player that draws SDUI (WittyMediaPlayer's engine) builds with WittyModule rather than with the server.
 - New package `host`: a module's way back to its server (items and their files on a person's behalf, `May`, settings, secrets, pictures, live sessions, notifications, events, tasks).
+- The SDUI kit follows the server at this release: its catalogue (WittyPlay's commands at the module's paths, `/api/modules/wittyplay/…`; the library admin, new library and match sources; library and metadata commands) and `sdui/core`.
 
 ## 0.4.0
 
