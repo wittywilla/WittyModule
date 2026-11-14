@@ -397,3 +397,16 @@ func Needs(in *wittymodule.Integration, offers map[string]int) error {
 func (c *Client) Audit(ctx context.Context, on On, action, core, detail string) error {
 	return c.Do(ctx, on, "POST", "/audit", map[string]string{"action": action, "core": core, "detail": detail}, nil)
 }
+
+// Report is a module's word on its own version in use: Working after something that proves it
+// (a game started), or a failure the server can't see itself. Three failures in a day take the
+// version out of use.
+type Report struct {
+	Working bool   `json:"working"`
+	Reason  string `json:"reason,omitempty"`
+}
+
+// Report tells the server.
+func (c *Client) Report(ctx context.Context, r Report) error {
+	return c.Do(ctx, On{}, "POST", "/report", r, nil)
+}
