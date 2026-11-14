@@ -1,0 +1,8 @@
+{
+  "name": "@wittywilla/wms-host",
+  "version": "5.0.0",
+  "description": "Types of what WittyMediaServer's web app gives a module's web bundle (web host API 5).",
+  "license": "AGPL-3.0-or-later",
+  "types": "index.d.ts",
+  "files": ["index.d.ts"]
+}
