@@ -13,10 +13,8 @@ const goodIntegration = `{
   "host": {"http": ">=1 <2", "web": ">=5"},
   "feature": "games",
   "http": [
-    {"path": "/games/{id}/play", "methods": ["POST"], "auth": "user", "item": "id", "plays": true,
-     "alias": ["/api/games/{id}/play"], "limits": {"body": "256KB", "time": "3m"}},
-    {"path": "/play/{sid}/stream", "methods": ["GET", "POST"], "auth": "user", "upgrade": "websocket", "stream": true,
-     "alias": ["/api/play/{sid}/stream"]},
+    {"path": "/games/{id}/play", "methods": ["POST"], "auth": "user", "item": "id", "plays": true, "limits": {"body": "256KB", "time": "3m"}},
+    {"path": "/play/{sid}/stream", "methods": ["GET", "POST"], "auth": "user", "upgrade": "websocket", "stream": true},
     {"path": "/rooms", "methods": ["POST"], "auth": "user"},
     {"path": "/kasm/{sid}/{ticket}/{rest...}", "methods": ["GET"], "auth": "ticket", "csp": "sandboxed-page"}
   ],
@@ -31,7 +29,7 @@ const goodIntegration = `{
     "navFold": [{"libraryKind": "games", "into": "wittyplay-online"}]
   },
   "sdui": {"ops": [{"id": "wittyplay.room.create", "http": "POST /rooms"}]},
-  "data": {"store": "sqlite", "import": "server-games-v1", "backup": "saves"},
+  "data": {"store": "sqlite", "backup": "saves"},
   "lifecycle": {"install": true, "upgrade": true, "uninstall": "ask-keep-data"},
   "live": {"sessions": true},
   "network": {"hosts": [{"host": "retroachievements.org", "why": "Achievements for the games you play"}]}
@@ -51,7 +49,7 @@ func TestIntegrationGood(t *testing.T) {
 		t.Fatalf("a good file has problems:\n%v", err)
 	}
 	s := in.Summary()
-	if s.Routes != 4 || s.Aliases != 2 || !s.Data || len(s.Screens) != 2 || s.Feature != "games" {
+	if s.Routes != 4 || !s.Data || len(s.Screens) != 2 || s.Feature != "games" {
 		t.Fatalf("summary %+v", s)
 	}
 }
@@ -75,9 +73,6 @@ func TestIntegrationProblems(t *testing.T) {
 		"bad method":            {`"methods": ["POST"], "auth": "user"}`, `"methods": ["BREW"], "auth": "user"}`, "http[2].methods"},
 		"bad auth":              {`"methods": ["POST"], "auth": "user"}`, `"methods": ["POST"], "auth": "anyone"}`, "http[2].auth"},
 		"item not in path":      {`"item": "id"`, `"item": "game"`, "http[0].item"},
-		"alias outside api":     {`"/api/games/{id}/play"`, `"/games/{id}/play"`, "http[0].alias[0]"},
-		"alias v1":              {`"/api/games/{id}/play"`, `"/api/v1/games/{id}/play"`, "http[0].alias[0]"},
-		"alias params":          {`"/api/games/{id}/play"`, `"/api/games/{game}/play"`, "http[0].alias[0]"},
 		"bad size":              {`"256KB"`, `"lots"`, "http[0].limits.body"},
 		"bad time":              {`"3m"`, `"3h"`, "http[0].limits.time"},
 		"ticket writes":         {`"methods": ["GET"], "auth": "ticket"`, `"methods": ["POST"], "auth": "ticket"`, "http[3].methods"},

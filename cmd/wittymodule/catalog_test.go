@@ -268,7 +268,7 @@ func TestFileInArchive(t *testing.T) {
 // missing or that a server would refuse.
 func TestCatalogAddTakesIntegration(t *testing.T) {
 	const integ = `{"format":"wittymodule-integration","formatVersion":1,"module":"wittyplay","feature":"games",
-  "http":[{"path":"/games/{id}/play","methods":["POST"],"auth":"user","item":"id","alias":["/api/games/{id}/play"]}]}`
+  "http":[{"path":"/games/{id}/play","methods":["POST"],"auth":"user","item":"id"}]}`
 	defer func() { extraInside = nil }()
 	api5 := `,"api":5`
 	cat := filepath.Join(t.TempDir(), "catalog.json")
@@ -284,7 +284,7 @@ func TestCatalogAddTakesIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	v := c.Find("wittyplay").Find("0.5.0")
-	if v.Integration == nil || v.Integration.Routes != 1 || v.Integration.Aliases != 1 || v.Integration.Feature != "games" {
+	if v.Integration == nil || v.Integration.Routes != 1 || v.Integration.Feature != "games" {
 		t.Fatalf("integration summary: %+v", v.Integration)
 	}
 

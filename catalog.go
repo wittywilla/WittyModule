@@ -405,7 +405,7 @@ func (v *CatalogVersion) validate() error {
 		}
 	}
 	if in := v.Integration; in != nil {
-		if in.Routes < 0 || in.Routes > 1000 || in.Aliases < 0 || in.Aliases > 2000 || len(in.Screens) > 64 || len(in.Settings) > 32 {
+		if in.Routes < 0 || in.Routes > 1000 || len(in.Screens) > 64 || len(in.Settings) > 32 {
 			return errors.New("its integration summary is larger than integration.json can be")
 		}
 		for _, t := range append(append([]string{in.Feature}, in.Screens...), in.Settings...) {

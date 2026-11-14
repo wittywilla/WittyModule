@@ -3,8 +3,7 @@
 
 // Package host is a module's way back to the server that runs it (module API 5): library items
 // and their files, whether a person may do something, the module's settings and secrets,
-// pictures, live sessions, notifications, tasks, events, and the server's legacy data the
-// module takes over once. Both ends speak the paths below; the server's end is
+// pictures, live sessions, notifications, tasks and events. Both ends speak the paths below; the server's end is
 // WittyMediaServer internal/modules/hostapi.go.
 //
 // Every call that is on someone's behalf says so (On), and the server answers with that
@@ -328,17 +327,6 @@ func (c *Client) Task(ctx context.Context, name string, done, total int, err err
 	return c.Do(ctx, On{}, "POST", "/tasks/"+url.PathEscape(name), body, nil)
 }
 
-// Legacy reads a page of the server's own data that the module's integration.json says it
-// takes over (data.import), table by table, rows as JSON objects, from after.
-func (c *Client) Legacy(ctx context.Context, table string, after int64, limit int) (rows []json.RawMessage, next int64, err error) {
-	var out struct {
-		Rows []json.RawMessage `json:"rows"`
-		Next int64             `json:"next"`
-	}
-	err = c.Do(ctx, On{}, "GET", fmt.Sprintf("/legacy/%s?after=%d&limit=%d", url.PathEscape(table), after, limit), nil, &out)
-	return out.Rows, out.Next, err
-}
-
 // Needs is a module's host range check: whether this server offers every host feature the
 // integration asks for, in range.
 func Needs(in *wittymodule.Integration, offers map[string]int) error {
@@ -348,33 +336,6 @@ func Needs(in *wittymodule.Integration, offers map[string]int) error {
 		}
 	}
 	return nil
-}
-
-// LegacyFiles lists the files of one of the server's folders that the module's import names
-// (gaming/backgrounds), to take over once.
-func (c *Client) LegacyFiles(ctx context.Context, dir string) ([]string, error) {
-	var out struct {
-		Files []string `json:"files"`
-	}
-	return out.Files, c.Do(ctx, On{}, "GET", "/legacy-files/"+dir, nil, &out)
-}
-
-// LegacyFile reads one of them.
-func (c *Client) LegacyFile(ctx context.Context, path string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", c.base+Base+"/legacy-files/"+path, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set(HeaderToken, c.token)
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return nil, &Error{Status: resp.StatusCode, Message: resp.Status}
-	}
-	return io.ReadAll(io.LimitReader(resp.Body, 64<<20))
 }
 
 // Audit writes a row of the server's audit log: who (on), what, to what. The server keeps it, so it

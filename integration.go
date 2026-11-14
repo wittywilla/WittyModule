@@ -74,8 +74,8 @@ type NetworkHost struct {
 const IntegrationFormat = "wittymodule-integration"
 
 // Route is one HTTP route the module answers. The server mounts it at /api/modules/<id><path>
-// (and /api/v1/modules/...), and at each alias, checks who may call it before the module hears of
-// the request, and passes it to the module's service at /http<path>.
+// (and /api/v1/modules/...), checks who may call it before the module hears of the request, and
+// passes it to the module's service at /http<path>. Apps call it there: a module's API is its own.
 type Route struct {
 	Path    string   `json:"path"`    // "/games/{id}/play": Go ServeMux style, starting with "/"
 	Methods []string `json:"methods"` // GET, HEAD, POST, PUT, PATCH, DELETE
@@ -92,9 +92,6 @@ type Route struct {
 	// Plays: calling it starts or goes on playing something, so it counts towards a profile's
 	// screen time and is refused when that time is up (leaving, a DELETE, never is).
 	Plays bool `json:"plays,omitempty"`
-	// Alias are the server's own paths this route also answers, kept for apps that call them
-	// (/api/games/{id}/play). A server allows only the paths its list for this module names.
-	Alias []string `json:"alias,omitempty"`
 	// Limits on a request and its answer; the server's defaults when left out.
 	Limits *Limits `json:"limits,omitempty"`
 	// CSP is a policy for an answer that is a page: "sandboxed-page" only, for ticket routes.
@@ -234,7 +231,6 @@ type Op struct {
 // DataPart is the module's own data.
 type DataPart struct {
 	Store  string `json:"store"`            // "sqlite": a database in its data folder
-	Import string `json:"import,omitempty"` // a server's legacy data to take over once, by name
 	Backup string `json:"backup,omitempty"` // which part of a backup it goes in: settings, saves, library
 }
 
@@ -271,7 +267,7 @@ type LivePart struct {
 
 // Host features a server offers, and their versions now.
 const (
-	HostHTTP = "http" // routes, aliases and what the server checks for them
+	HostHTTP = "http" // routes, and what the server checks for them
 	HostWeb  = "web"  // the web app's host object (web host API)
 	HostSDUI = "sdui" // the SDUI catalogue revision
 	HostAPI  = "host" // the host API a module calls back on
@@ -386,20 +382,6 @@ func (in *Integration) Check(m *Manifest) []Problem {
 		}
 		if r.CSP != "" && (r.CSP != "sandboxed-page" || r.Auth != AuthTicket) {
 			add(f+".csp", "only a ticket route's page can have a policy, and only sandboxed-page")
-		}
-		for j, a := range r.Alias {
-			af := fmt.Sprintf("%s.alias[%d]", f, j)
-			if !strings.HasPrefix(a, "/api/") || strings.HasPrefix(a, "/api/v1/") || !routePath.MatchString(a) {
-				add(af, "%q must be a path under /api/ (the /api/v1 form follows by itself)", a)
-				continue
-			}
-			ap := map[string]bool{}
-			for _, p := range pathParams.FindAllStringSubmatch(a, -1) {
-				ap[p[1]] = true
-			}
-			if fmt.Sprint(keysOf(ap)) != fmt.Sprint(keysOf(params)) {
-				add(af, "must have the same parameters as its route's path")
-			}
 		}
 		if r.Limits != nil {
 			for _, s := range []struct{ name, v string }{{"body", r.Limits.Body}, {"answer", r.Limits.Answer}} {
@@ -538,9 +520,6 @@ func (in *Integration) Check(m *Manifest) []Problem {
 		if !m.Asks(PermissionData) {
 			add("data", "needs the data permission")
 		}
-		if d.Import != "" && !idName.MatchString(d.Import) {
-			add("data.import", "%q isn't a name", d.Import)
-		}
 		if d.Backup != "" && !slices.Contains([]string{"settings", "saves", "library"}, d.Backup) {
 			add("data.backup", "must be settings, saves or library")
 		}
@@ -630,7 +609,6 @@ func InRange(v int, r string) bool {
 // Summary is what a catalogue says of a version's integration.json, for the store to show.
 type IntegrationSummary struct {
 	Routes   int      `json:"routes,omitempty"`
-	Aliases  int      `json:"aliases,omitempty"`
 	Screens  []string `json:"screens,omitempty"` // web routes
 	Settings []string `json:"settings,omitempty"`
 	Data     bool     `json:"data,omitempty"`
@@ -640,9 +618,6 @@ type IntegrationSummary struct {
 // Summary sums the file up.
 func (in *Integration) Summary() IntegrationSummary {
 	s := IntegrationSummary{Routes: len(in.HTTP), Data: in.Data != nil, Feature: in.Feature}
-	for _, r := range in.HTTP {
-		s.Aliases += len(r.Alias)
-	}
 	if in.Web != nil {
 		for _, r := range in.Web.Routes {
 			s.Screens = append(s.Screens, r.Path)
