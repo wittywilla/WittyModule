@@ -242,18 +242,11 @@
     "pages/games/VirtualGames": [
       "VirtualGames"
     ],
-    "pages/settings/Couch": [
-      "Credits",
-      "default"
-    ],
     "pages/settings/ModuleSettings": [
       "ModuleSettingsList",
       "ModuleSettingsPage",
       "canChange",
       "valueOf"
-    ],
-    "pages/settings/WittyRigs": [
-      "default"
     ],
     "pages/settings/ui": [
       "PageHead",
