@@ -77,7 +77,7 @@ func catalogAdd(path, base, changelog, pubKey, publisher string, dirs []string) 
 	platforms := map[string]wittymodule.CatalogFile{}
 	// The version's sdui.json, from the first archive that has it, checked against the signed
 	// list like the archive itself: the catalogue sums up what the release really carries.
-	var uiRaw []byte
+	var uiRaw, intRaw []byte
 	addArchive := func(key, name, top string) error {
 		st, err := os.Stat(filepath.Join(dir, name))
 		if err != nil {
@@ -108,6 +108,19 @@ func catalogAdd(path, base, changelog, pubKey, publisher string, dirs []string) 
 				uiRaw = raw
 			}
 		}
+		if intRaw == nil {
+			inside := top + "/" + wittymodule.IntegrationFile
+			raw, err := fileInArchive(name, b, inside)
+			if err != nil {
+				return fmt.Errorf("%s: %w", name, err)
+			}
+			if raw != nil {
+				if sum := sha256.Sum256(raw); list[inside] != wittymodule.HashHex(sum[:]) {
+					return fmt.Errorf("%s in %s doesn't match the signed list", inside, name)
+				}
+				intRaw = raw
+			}
+		}
 		return nil
 	}
 	if man.PerPlatform() {
@@ -123,6 +136,10 @@ func catalogAdd(path, base, changelog, pubKey, publisher string, dirs []string) 
 		return fmt.Errorf("%s: no archives of %s %s", dir, man.ID, man.Version)
 	}
 	ui, err := releaseUI(man, uiRaw)
+	if err != nil {
+		return err
+	}
+	integ, err := releaseIntegration(man, intRaw)
 	if err != nil {
 		return err
 	}
@@ -144,7 +161,7 @@ func catalogAdd(path, base, changelog, pubKey, publisher string, dirs []string) 
 	ver := wittymodule.CatalogVersion{Version: man.Version, Delivery: man.Delivery, API: man.API, MinServer: man.MinServer, MaxServer: man.MaxServer,
 		License: man.License, Permissions: man.Permissions, Released: time.Now().UTC().Format(time.DateOnly), Prerelease: wittymodule.Prerelease(man.Version), Changelog: notes,
 		Sums: at(sumsName), Sig: at(sumsName + ".sig"), Manifest: at(filepath.Base(found[0])), Platforms: platforms,
-		Status: man.Status, StatusNote: man.StatusNote, UI: ui}
+		Status: man.Status, StatusNote: man.StatusNote, UI: ui, Integration: integ}
 
 	c, err := readCatalog(path)
 	if err != nil {
@@ -184,6 +201,26 @@ func releaseUI(man *wittymodule.Manifest, raw []byte) (*wittymodule.CatalogUI, e
 	}
 	ui := sdui.Summary(m)
 	return &ui, nil
+}
+
+// releaseIntegration sums up a release's integration.json; a version that must carry one and
+// doesn't, or carries one a server would refuse, isn't listed.
+func releaseIntegration(man *wittymodule.Manifest, raw []byte) (*wittymodule.IntegrationSummary, error) {
+	if raw == nil {
+		if man.NeedsIntegration() {
+			return nil, fmt.Errorf("%s %s is built for module API %d and its archives have no %s", man.ID, man.Version, man.API, wittymodule.IntegrationFile)
+		}
+		return nil, nil
+	}
+	in, err := wittymodule.ParseIntegration(raw)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w", man.ID, man.Version, err)
+	}
+	if err := in.Validate(man); err != nil {
+		return nil, fmt.Errorf("%s %s: its %s doesn't pass the checks a server makes:\n%w", man.ID, man.Version, wittymodule.IntegrationFile, err)
+	}
+	s := in.Summary()
+	return &s, nil
 }
 
 // fileInArchive reads one file from a release archive (.zip, else .tar.gz), at most as large

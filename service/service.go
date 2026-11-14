@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"os"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -65,6 +66,37 @@ type Config struct {
 	UI sdui.Answers
 	// Busy says it has work going on, such as a game being played, with nobody calling.
 	Busy func() bool
+
+	// HTTP adds the module's own routes, those its integration.json lists (module API 5). The
+	// server passes a person's request for /api/modules/<id><path> (or an alias of it) to
+	// /http<path> here, once it has checked who may call it; Who says who is asking. Patterns
+	// are written without the /http prefix: "POST /games/{id}/play".
+	HTTP func(mux *http.ServeMux)
+	// Lifecycle answers the lifecycle calls its integration.json says it answers
+	// (wittymodule.CallInstall and the rest). An error rolls the install or upgrade back.
+	Lifecycle func(ctx context.Context, call string, args wittymodule.LifecycleArgs) error
+}
+
+// StartParams is what a server of module API 5 or newer tells a service as it starts it: where
+// its host API is, and the secret for this start. An older server sends none.
+type StartParams struct {
+	Host      string `json:"host,omitempty"` // http://127.0.0.1:port, this server's host API
+	HostToken string `json:"hostToken,omitempty"`
+	// Offers is what the server offers: host feature (wittymodule.HostHTTP …) → its version.
+	Offers map[string]int `json:"offers,omitempty"`
+}
+
+var (
+	hostMu   sync.Mutex
+	hostInfo StartParams
+)
+
+// Host is where this service's host API is, as the server said at the start; zero when the
+// server is older than module API 5.
+func Host() StartParams {
+	hostMu.Lock()
+	defer hostMu.Unlock()
+	return hostInfo
 }
 
 // Main runs a service module. Started by hand, it explains itself instead of waiting silently.
@@ -84,21 +116,45 @@ func Main(c Config) {
 		os.Exit(1)
 	}
 	// Leaving when the server closes the pipe means it can't outlive the server.
-	err = wittymodule.Serve(os.Stdin, os.Stdout, wittymodule.Hello{Module: m.ID, Version: m.Version, API: m.API}, func(method string, params json.RawMessage) (any, []byte, error) {
-		if method == MethodStart {
-			return started, nil, nil
-		}
-		if res, blob, err, ok := c.UI.Handle(method, params); ok {
-			return res, blob, err
-		}
-		return nil, nil, &wittymodule.CallError{Code: "unknown-method", Message: fmt.Sprintf("this version has no %q", method)}
-	})
+	err = wittymodule.Serve(os.Stdin, os.Stdout, wittymodule.Hello{Module: m.ID, Version: m.Version, API: m.API}, helperCalls(c, started))
 	if c.OnStop != nil {
 		c.OnStop()
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+}
+
+// helperCalls answers the server's calls on the helper protocol's pipe: where the service is,
+// the lifecycle calls, and SDUI.
+func helperCalls(c Config, started *Started) func(method string, params json.RawMessage) (any, []byte, error) {
+	return func(method string, params json.RawMessage) (any, []byte, error) {
+		if method == MethodStart {
+			var p StartParams
+			if len(params) > 0 && string(params) != "null" {
+				if err := json.Unmarshal(params, &p); err != nil {
+					return nil, nil, err
+				}
+			}
+			hostMu.Lock()
+			hostInfo = p
+			hostMu.Unlock()
+			return started, nil, nil
+		}
+		if strings.HasPrefix(method, "lifecycle.") && c.Lifecycle != nil {
+			var a wittymodule.LifecycleArgs
+			if len(params) > 0 && string(params) != "null" {
+				if err := json.Unmarshal(params, &a); err != nil {
+					return nil, nil, err
+				}
+			}
+			return nil, nil, c.Lifecycle(context.Background(), method, a)
+		}
+		if res, blob, err, ok := c.UI.Handle(method, params); ok {
+			return res, blob, err
+		}
+		return nil, nil, &wittymodule.CallError{Code: "unknown-method", Message: fmt.Sprintf("this version has no %q", method)}
 	}
 }
 
@@ -126,6 +182,11 @@ func listen(c Config) (*Started, error) {
 	mux.Handle("POST /call/{name}", callHandler(c))
 	if c.Routes != nil {
 		c.Routes(mux)
+	}
+	if c.HTTP != nil {
+		own := http.NewServeMux()
+		c.HTTP(own)
+		mux.Handle("/http/", http.StripPrefix("/http", own))
 	}
 	srv := &http.Server{Handler: guard(token, mux), ReadHeaderTimeout: 30 * time.Second}
 	go func() { _ = srv.Serve(l) }()

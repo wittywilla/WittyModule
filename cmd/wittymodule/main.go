@@ -270,6 +270,23 @@ func inspect(dir, server string) (problems, warnings []string) {
 	} else if m.NeedsSDUI() {
 		bad(uiFile, "", "it is built for module API %d, where a module carries its own SDUI, and it has no %s beside %s (see WittyMediaServer docs/SDUI-MODULES.md)", m.API, wittymodule.SDUIFile, wittymodule.ManifestFile)
 	}
+	// Its integration (module API 5): required from that API for anything a server runs, checked
+	// whenever it is there.
+	intFile := filepath.Join(dir, wittymodule.IntegrationFile)
+	if b, err := os.ReadFile(intFile); err == nil {
+		in, err := wittymodule.ParseIntegration(b)
+		if err != nil {
+			bad(intFile, "", "%s", strings.TrimPrefix(err.Error(), wittymodule.IntegrationFile+": "))
+		} else {
+			for _, p := range in.Check(&m) {
+				bad(intFile, p.Field, "%s", p.Message)
+			}
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		bad(intFile, "", "can't be read: %v", err)
+	} else if m.NeedsIntegration() {
+		bad(intFile, "", "it is built for module API %d, where a module says what it adds to a server in %s, and it has none beside %s (see WittyMediaServer docs/MODULES-API5.md)", m.API, wittymodule.IntegrationFile, wittymodule.ManifestFile)
+	}
 	// An unfinished version passes, and says so: a server asks an administrator before using it.
 	if m.Unfinished() && sound {
 		warnings = append(warnings, fmt.Sprintf("%s: status: this version says it is %s: %s. A server warns about it and installs it only when an administrator agrees", manFile, m.Status, strings.TrimRight(m.StatusNote, ".")))
@@ -406,10 +423,10 @@ func pack(dirs []string, out, targets, gcflagsFreeBSD, built, prebuilt string) e
 				files[wittymodule.NoticesFile] = b
 			}
 		}
-		for _, name := range []string{wittymodule.ManifestFile, "LICENSE", "NOTICE", "README.md", wittymodule.SDUIFile} {
+		for _, name := range []string{wittymodule.ManifestFile, "LICENSE", "NOTICE", "README.md", wittymodule.SDUIFile, wittymodule.IntegrationFile} {
 			if b, err := os.ReadFile(filepath.Join(dir, name)); err == nil {
 				files[name] = b
-			} else if name != "README.md" && (name != wittymodule.SDUIFile || m.NeedsSDUI()) {
+			} else if name != "README.md" && (name != wittymodule.SDUIFile || m.NeedsSDUI()) && (name != wittymodule.IntegrationFile || m.NeedsIntegration()) {
 				return err
 			}
 		}
@@ -563,10 +580,10 @@ func packWeb(dirs []string, out, built string) error {
 			return fmt.Errorf("the built bundle has no %s, which the manifest names", m.Style)
 		}
 	}
-	for _, name := range []string{"LICENSE", "NOTICE", wittymodule.SDUIFile} {
+	for _, name := range []string{"LICENSE", "NOTICE", wittymodule.SDUIFile, wittymodule.IntegrationFile} {
 		b, err := os.ReadFile(filepath.Join(dir, name))
 		if err != nil {
-			if name == wittymodule.SDUIFile && !m.NeedsSDUI() {
+			if (name == wittymodule.SDUIFile && !m.NeedsSDUI()) || (name == wittymodule.IntegrationFile && !m.NeedsIntegration()) {
 				continue
 			}
 			return err

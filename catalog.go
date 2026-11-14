@@ -112,6 +112,9 @@ type CatalogVersion struct {
 	// written by `wittymodule catalog-add` from the file in the signed release; a version
 	// with no sdui.json has none.
 	UI *CatalogUI `json:"ui,omitempty"`
+	// Integration sums up what the version's integration.json adds to a server (module API 5):
+	// how many routes, which screens, which settings, whether it keeps data of its own.
+	Integration *IntegrationSummary `json:"integration,omitempty"`
 }
 
 // CatalogUI sums up a version's sdui.json: its pages, its menu entries by label, whether it
@@ -399,6 +402,16 @@ func (v *CatalogVersion) validate() error {
 	if v.UI != nil {
 		if err := v.UI.validate(); err != nil {
 			return err
+		}
+	}
+	if in := v.Integration; in != nil {
+		if in.Routes < 0 || in.Routes > 1000 || in.Aliases < 0 || in.Aliases > 2000 || len(in.Screens) > 64 || len(in.Settings) > 32 {
+			return errors.New("its integration summary is larger than integration.json can be")
+		}
+		for _, t := range append(append([]string{in.Feature}, in.Screens...), in.Settings...) {
+			if !plainText(t, maxText, false) {
+				return errors.New("its integration summary has text that isn't plain")
+			}
 		}
 	}
 	if w := v.Withdrawn; w != nil {

@@ -28,17 +28,23 @@ func fakeRelease(t *testing.T, ver string) string {
 	return fakeReleaseWith(t, ver, playUI, "")
 }
 
+// extraInside adds files to the archives fakeReleaseWith writes.
+var extraInside map[string]string
+
 // fakeReleaseWith writes a release whose archive holds ui as its sdui.json ("" for none), and
 // whose manifest has more fields (`,"status":"beta"`).
 func fakeReleaseWith(t *testing.T, ver, ui, more string) string {
 	t.Helper()
 	dir := t.TempDir()
-	man := fmt.Sprintf(`{"id":"wittyplay","name":"WittyPlay","version":%q,"license":"Apache-2.0","repo":"wittywilla/WittyPlay","delivery":"helper","entry":"wittyplay-module","api":%d,"minServer":"0.6.0-alpha","maxServer":"0.6.x","summary":"Games.","group":"play"%s}`, ver, wittymodule.API, more)
+	man := fmt.Sprintf(`{"id":"wittyplay","name":"WittyPlay","version":%q,"license":"Apache-2.0","repo":"wittywilla/WittyPlay","delivery":"helper","entry":"wittyplay-module","api":%d,"minServer":"0.6.0-alpha","maxServer":"0.6.x","summary":"Games.","group":"play"%s}`, ver, wittymodule.SDUIFromAPI, more)
 	manName := wittymodule.ManifestName("wittyplay", ver)
 	top := wittymodule.TopFolder("wittyplay", ver, "linux", "amd64")
 	inside := map[string][]byte{wittymodule.ManifestFile: []byte(man), "wittyplay-module": []byte("a program")}
 	if ui != "" {
 		inside[wittymodule.SDUIFile] = []byte(ui)
+	}
+	for name, content := range extraInside {
+		inside[name] = []byte(content)
 	}
 	archive, err := archiveBytes("linux", top, map[string]bool{"wittyplay-module": true}, inside)
 	if err != nil {
@@ -255,5 +261,44 @@ func TestFileInArchive(t *testing.T) {
 		if _, err := fileInArchive(name, b, "top/big"); err == nil {
 			t.Errorf("%s: a file past the limit was read", goos)
 		}
+	}
+}
+
+// An API 5 release carries integration.json; the catalogue sums it up, and refuses one that's
+// missing or that a server would refuse.
+func TestCatalogAddTakesIntegration(t *testing.T) {
+	const integ = `{"format":"wittymodule-integration","formatVersion":1,"module":"wittyplay","feature":"games",
+  "http":[{"path":"/games/{id}/play","methods":["POST"],"auth":"user","item":"id","alias":["/api/games/{id}/play"]}]}`
+	defer func() { extraInside = nil }()
+	api5 := `,"api":5`
+	cat := filepath.Join(t.TempDir(), "catalog.json")
+
+	extraInside = map[string]string{wittymodule.IntegrationFile: integ}
+	dir := fakeReleaseWith(t, "0.5.0", playUI, api5)
+	pub := signRelease(t, dir, "0.5.0")
+	if err := catalogAdd(cat, "", "", pub, "WittyWilla", []string{dir}); err != nil {
+		t.Fatal(err)
+	}
+	c, err := readCatalog(cat)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := c.Find("wittyplay").Find("0.5.0")
+	if v.Integration == nil || v.Integration.Routes != 1 || v.Integration.Aliases != 1 || v.Integration.Feature != "games" {
+		t.Fatalf("integration summary: %+v", v.Integration)
+	}
+
+	extraInside = nil
+	dir = fakeReleaseWith(t, "0.5.1", playUI, api5)
+	pub = signRelease(t, dir, "0.5.1")
+	if err := catalogAdd(cat, "", "", pub, "WittyWilla", []string{dir}); err == nil || !strings.Contains(err.Error(), wittymodule.IntegrationFile) {
+		t.Fatalf("an API 5 release without integration.json was listed: %v", err)
+	}
+
+	extraInside = map[string]string{wittymodule.IntegrationFile: strings.Replace(integ, `"auth":"user"`, `"auth":"anyone"`, 1)}
+	dir = fakeReleaseWith(t, "0.5.2", playUI, api5)
+	pub = signRelease(t, dir, "0.5.2")
+	if err := catalogAdd(cat, "", "", pub, "WittyWilla", []string{dir}); err == nil || !strings.Contains(err.Error(), "auth") {
+		t.Fatalf("a bad integration.json was listed: %v", err)
 	}
 }

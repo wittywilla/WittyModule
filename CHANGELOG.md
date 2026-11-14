@@ -5,6 +5,10 @@ What changed in WittyModule, newest first. What changed before it had a reposito
 
 ## Unreleased
 
+- **Module API 5** (`API = 5`; a server still takes 3 and 4): a module owns its whole feature and says what it adds to a server in `integration.json` beside `module.json` and `sdui.json` (`Integration`, `ParseIntegration`, `Check`, `Summary`): its HTTP routes (who may call each, the item it names, WebSockets, streams, limits, and aliases of the server's own paths that apps already call), what its web bundle adds to the web app (routes and full-screen frames, libraries of a kind it draws, card art and links, players, readers, Settings sections, setup steps, menu folding), its SDUI commands, its own database, its lifecycle calls (`lifecycle.install`, `.upgrade`, `.enable`, `.disable`, `.uninstall`) and the live sessions it reports. Required from API 5 for anything a server runs; `wittymodule check` checks it, `pack` ships it, and `catalog-add` refuses a release without one (or with one a server would refuse) and lists its summary as `integration`.
+- `service.Config` gains `HTTP` (the module's routes, reached at `/http<path>` once the server has checked who may call them; `service.Who`, `People`, `Admins` read who is asking) and `Lifecycle`. A server of API 5 tells a service where its host API is as it starts it (`StartParams`, `service.Host`).
+- New package `host`: a module's way back to its server (items and their files on a person's behalf, `May`, settings, secrets, pictures, live sessions, notifications, events, tasks, and the server's legacy data it takes over once).
+
 ## 0.4.0
 
 Module API 4 and the SDUI kit at catalogue revision 8, for WittyMediaServer 0.6.0-alpha to 0.8.x. (0.3.0, published 2026-11-02, is module API 3: everything built for 0.8.0-alpha needs this version.)

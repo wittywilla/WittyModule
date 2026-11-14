@@ -30,8 +30,13 @@ import (
 // manifest (package sdui; WittyMediaServer docs/SDUI-MODULES.md), which the server checks
 // against its catalogue, and a version built for API 4 without one is refused. A server
 // that takes API 4 still takes API 3, so nothing breaks until a module is upgraded.
+//
+// API 5 makes a module own its whole feature: its HTTP routes, the screens it adds to the web
+// app, its data and its lifecycle, declared in integration.json (integration.go), and a host API
+// it calls back on (package host). A server that takes API 5 still takes 3 and 4, and runs its
+// own copy of a module's feature for those until every module has moved.
 const (
-	API    = 4
+	API    = 5
 	MinAPI = 3
 )
 
