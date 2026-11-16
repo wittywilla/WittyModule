@@ -51,7 +51,8 @@ render() { # <template> <output>
     -e "s|@@README_WITHDRAW@@|$readme_withdraw|" -e "s|@@LICENSE@@|$license|g" > "$2"
 }
 
-# Puts the generated section at the end of the README, or in place of the one there.
+# Puts the generated section just before the README's Legal section, which every README ends
+# with, or at the end when it has none. A section an older kit wrote after Legal moves there too.
 readme() { # <folder>
   local file="$1/README.md" section kept
   section=$(mktemp)
@@ -61,7 +62,17 @@ readme() { # <folder>
   # Without the section and the blank line before it, the file is what its owner wrote.
   awk '/<!-- module-kit -->/ { skip = 1 } !skip { print } /<!-- \/module-kit -->/ { skip = 0 }' "$file" |
     sed -e ':a' -e '/^[[:space:]]*$/{$d;N;ba' -e '}' > "$kept"
-  { cat "$kept"; echo; cat "$section"; } > "$file"
+  if grep -q '^## Legal[[:space:]]*$' "$kept"; then
+    awk -v section="$section" '
+      !done && /^## Legal[[:space:]]*$/ {
+        while ((getline line < section) > 0) print line
+        print ""
+        done = 1
+      }
+      { print }' "$kept" > "$file"
+  else
+    { cat "$kept"; echo; cat "$section"; } > "$file"
+  fi
   rm -f "$section" "$kept"
 }
 
