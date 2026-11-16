@@ -1,8 +1,8 @@
 # WittyModule
 
-What a WittyMediaServer plugin needs to be a project of its own: the manifest, the rules for version ranges, the protocol a helper process speaks, and the tool that builds and signs a release. It's for people who make modules.
+What a [WittyMediaServer](https://github.com/wittywilla/WittyMediaServer) module needs to be a project of its own: the manifest, the rules for version ranges, the protocol a helper process speaks, what a module adds to a server and to every app, and the tool that builds and signs a release. It's for people who make modules. WittyMediaServer's site is https://wittymediaserver.com.
 
-**The specification** of a module, everything one is held to at module API 4 (and where API 3 differs), is [docs/SPEC.md](docs/SPEC.md): its manifest, delivery kinds, permissions, the helper protocol, its SDUI, releases and signing, catalogues and stores, withdrawals, forks, its status, and the overrides a server allows.
+**The specification** of a module, everything one is held to at module API 5, is [docs/SPEC.md](docs/SPEC.md): its manifest, delivery kinds, permissions, the helper protocol, its SDUI, releases and signing, catalogues and stores, withdrawals, forks, its status, and the overrides a server allows.
 
 <!-- pictures -->
 
@@ -15,6 +15,12 @@ What a WittyMediaServer plugin needs to be a project of its own: the manifest, t
 <sub>A module's own page in the store.</sub>
 
 <!-- /pictures -->
+
+## How it fits
+
+WittyMediaServer 0.8.0-alpha takes module API 5 only, with no backwards compatibility: a module built for an older API is refused and needs a new release. This version of WittyModule is module API 5 (`api: 5` in [module.json](module.json)). Every module in the store is built with it, and the server uses the same code to read and check what a module says about itself.
+
+It's a library, not a module you install: a server gets it inside the modules built with it, so there's nothing to add from the store. Its own manifest gives WittyMediaServer 0.6.0-alpha through 0.8.x as its range, and a module built with it runs on a server that takes module API 5, which is 0.8.0-alpha and later in the 0.8 series. People add the modules themselves in **Settings → Modules → Browse the store → Add**.
 
 ## What it does
 
@@ -30,23 +36,25 @@ func main() {
 }
 ```
 
-- **The module's SDUI (module API 4):** `sdui/` writes and checks the `sdui.json` every module carries: what it adds to every app, as data the server checks and every app draws. `kit/sdui/` is the same for web bundles in TypeScript. WittyMediaServer's docs/SDUI-MODULES.md describes it.
+- **What a module adds to a server:** `integration.json`, which every installed module carries from module API 5: its routes, its web part, its own data, its lifecycle calls and its scan hooks. WittyMediaServer's docs/MODULES-API5.md describes it.
+- **The module's SDUI:** `sdui/` writes and checks the `sdui.json` every installed module carries: what it adds to every app, as data the server checks and every app draws. `kit/sdui/` is the same for web bundles in TypeScript. WittyMediaServer's docs/SDUI-MODULES.md describes it.
+- **Services:** `service/` is both ends of a helper that takes calls that overlap and connections a browser makes straight to it.
 - **The catalogue:** the code that reads and checks a store's signed list of modules.
 - **Withdrawing a version:** the signed list that takes a version back.
 - **The `wittymodule` tool:**
 
 | Command | What it does |
 |---|---|
-| `check` | Checks a folder's manifest and `sdui.json`, listing every problem by file and field |
+| `check` | Checks a folder's manifest, `sdui.json` and `integration.json`, listing every problem by file and field |
 | `pack` | Builds a release: a program for every system, or a browser bundle with `-web` |
 | `sign`, `keygen` | Signs a checksum list, and makes a key |
 | `bump`, `needs-bump` | Raises the version everywhere it's written, and fails if code changed since the last tag with no new version |
 | `withdraw`, `restore` | Takes a version back, and undoes that |
 | `catalog-add`, `catalog-check`, `catalog-sign` | Works on a store's catalogue |
 
-- **`kit/`:** `kit/module-kit.sh` writes a module's workflows and the Releasing section of its README, and `kit/facade` writes the stubs a server uses to call a module.
+- **`kit/`:** `kit/module-kit.sh` writes a module's workflows and the Releasing section of its README, `kit/facade` writes the stubs a server uses to call a module, and `kit/web` builds a module's web part.
 
-The specification is [docs/SPEC.md](docs/SPEC.md). The reasoning behind it, including what each version range means, is in Making a module, in **Help** inside WittyMediaServer.
+The reasoning behind the specification, including what each version range means, is in Making a module, in **Help** inside WittyMediaServer, and in the server's docs/MODULES.md.
 
 ## How to get it
 
@@ -60,17 +68,21 @@ go get github.com/wittywilla/wittymodule
 go run github.com/wittywilla/wittymodule/cmd/wittymodule check .
 ```
 
-A server gets it inside the modules built with it, so there's nothing to add from the store. Modules built with this version work with WittyMediaServer 0.6.0-alpha or later, through **Settings → Modules**, and nothing older.
-
 ## What it needs
 
-Go 1.26 or newer. It has no dependencies, and no cgo.
+Go 1.26 or newer. It has no dependencies, and no cgo. The TypeScript kit's tests need Node.js (CI uses 24).
 
 ## Platforms
 
 It's plain Go, and CI builds it for Windows, macOS, Linux and FreeBSD. Its tests have been run on Linux, and `pack` has built modules for all four from there, including FreeBSD on amd64 and arm64. Those have not been run on a real Mac or on FreeBSD. `kit/module-kit.sh` needs bash.
 
 ## Building and testing
+
+What CI runs:
+
+```bash
+go run ./cmd/wittymodule check .
+```
 
 ```bash
 go vet ./...
@@ -81,7 +93,7 @@ go test ./... -count=1
 ```
 
 ```bash
-go run ./cmd/wittymodule check .
+node --test kit/sdui/tests/*.test.mjs
 ```
 
 A module's own `pack` and `sign` go like this:
