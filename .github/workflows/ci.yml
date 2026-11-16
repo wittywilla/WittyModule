@@ -47,7 +47,7 @@ jobs:
           go mod tidy -diff
       - run: go vet ./...
       - run: go test ./... -count=1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
       - name: The TypeScript kit for modules' SDUI
