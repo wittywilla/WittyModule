@@ -4,5 +4,5 @@ Pictures taken from a test server of WittyMediaServer, filled with openly licens
 
 | Picture | What it shows |
 |---|---|
-| `module-store.webp` | What a module becomes: its entry in the store, here from a local test catalogue. |
+| `module-store.webp` | What a module becomes: its entry in the store. |
 | `store-module.webp` | A module's own page in the store. |
