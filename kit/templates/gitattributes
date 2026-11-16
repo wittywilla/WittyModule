@@ -1,0 +1,3 @@
+# Every text file is checked out with LF, on Windows too: Git for Windows otherwise makes them
+# CRLF, and tests that compare files byte for byte, and what is built in, then differ by system.
+* text=auto eol=lf
