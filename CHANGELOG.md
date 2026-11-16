@@ -3,6 +3,10 @@
 What changed in WittyModule, newest first. What changed before it had a repository of its own is in the
 [WittyMediaServer changelog](https://github.com/wittywilla/WittyMediaServer/blob/master/CHANGELOG.md).
 
+## 0.5.5
+
+- SDUI core synced from the server (a focusable list's rows stay focus stops; a List's rows carry their items' buttons). Text files are checked out with LF, and module-kit gives every module a .gitattributes that says so (#7).
+
 ## 0.5.4
 
 - **Module API 5 only.** `MinAPI` is 5: `check` refuses a manifest of API 3 or 4, and `Supports` says to install a version built for module API 5. `SDUIFromAPI` and `IntegrationFromAPI` are gone: every helper, program and web module carries `sdui.json` and `integration.json`. This module's own manifest says API 5. Specification 5.0.

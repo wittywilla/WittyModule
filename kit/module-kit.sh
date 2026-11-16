@@ -214,6 +214,7 @@ To take a version back, run the *withdraw* workflow from the *Actions* tab. It a
   esac
   render "$templates/dependabot.yml" "$dir/.github/dependabot.yml"
   [ -f "$dir/.gitignore" ] || cp "$templates/gitignore" "$dir/.gitignore"
+  [ -f "$dir/.gitattributes" ] || cp "$templates/gitattributes" "$dir/.gitattributes"
   web_package "$dir"
   case " $words " in
     *" webpart "*) sdui_kit "$dir" ;;

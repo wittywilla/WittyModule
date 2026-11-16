@@ -1197,6 +1197,9 @@ func (r *renderer) collectionPage(n *Node, in instance, offset, limit int, allow
 					row.Props["number"] = strconv.Itoa(num)
 				}
 			}
+			if propBool(p, "focusable", false) {
+				row.Props["focusable"] = true // a stop even while it has no action (a scan's choices while it runs)
+			}
 			n.Children = append(n.Children, row)
 			continue
 		}
@@ -1291,6 +1294,10 @@ func (r *renderer) listItem(parent string, it *Item) Node {
 	}
 	if c := cleanControl(it.Control); c != nil {
 		n.Props["control"] = c
+	}
+	// The item's own buttons (a friend's Invite, a room's Join and Leave), as a card carries them.
+	if acts := cleanActions(it.Actions); len(acts) > 0 {
+		n.Props["actions"] = acts
 	}
 	switch {
 	case it.Action != nil:
