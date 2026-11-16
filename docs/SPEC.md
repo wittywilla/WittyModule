@@ -134,7 +134,7 @@ is how an older server reads a newer manifest. `wittymodule.ParseManifest` reads
   "license": "AGPL-3.0-or-later",
   "delivery": "helper",
   "entry": "wittyphotos-module",
-  "api": 4,
+  "api": 5,
   "minServer": "0.8.0-alpha",
   "maxServer": "0.8.x",
   "group": "photos",
@@ -159,8 +159,8 @@ is how an older server reads a newer manifest. `wittymodule.ParseManifest` reads
 | `style` | string | no | A web bundle's stylesheet, a file in the bundle; same pattern. |
 | `programs` | list of strings | no | More programs that come with a helper or program, each built from `cmd/<name>`, same pattern, at most 64. Not for other deliveries. |
 | `webEntry`, `webStyle` | string | no | The script and stylesheet of a helper's or program's part in the browser, in `web/` inside each archive. Same pattern. Not for other deliveries. |
-| `api` | int | yes | The module API it was built for: at least 1 to parse; 3 or 4 to be released or run. |
-| `minServer` | string | yes | The oldest server it fits, a version. At least `0.6.0-alpha` (`wittymodule.FirstServer`); for API 4, `0.8.0-alpha` in practice, the first server that reads `sdui.json`. |
+| `api` | int | yes | The module API it was built for: at least 1 to parse; 5 to be released or run. |
+| `minServer` | string | yes | The oldest server it fits, a version. At least `0.6.0-alpha` (`wittymodule.FirstServer`); for API 5, `0.8.0-alpha` in practice, the first server that takes it. |
 | `maxServer` | string | yes | The newest server it fits: an exact version, or a series such as `0.8.x` or `0.x`. A lone `x` is refused. Must not be below `minServer`. See [section 6](#6-compatibility). |
 | `capabilities` | object of string lists | no | Facts a server needs without starting the program, such as `rawExtensions` and `logTopics` ([section 15](#15-logging-and-capabilities)). Keys, values and lengths together at most 4,096 bytes. |
 | `permissions` | list of strings | no | `network`, `programs`, `devices`, `data` ([section 7](#7-permissions-and-limits)); at most 64 entries. Any other word is refused by `wittymodule`; a server that doesn't know a permission won't run the version. |
@@ -172,7 +172,7 @@ is how an older server reads a newer manifest. `wittymodule.ParseManifest` reads
 | `libraries` | list of strings | no | Kinds of library that need it, at most 64. Only the kinds a signed catalogue lists for a module count. |
 | `requires` | list of strings | no | Module IDs it is built on, installed first; at most 64. |
 | `core` | bool | no | Other modules can't do without it, so it can't be taken off a server. |
-| `pages` | list | no | Pages its web part draws in the web app (API 3's way): at most 16, only with a part in the browser. Each: `id` (`^[a-z][a-z0-9-]{0,63}$`, unique), `title` (one line of plain text, 1 to 64 bytes), `where` (`main` or `settings`), `icon` (a word, optional), `admin` (bool). |
+| `pages` | list | no | Pages its web part draws in the web app ([section 10](#10-web-parts)): at most 16, only with a part in the browser. Each: `id` (`^[a-z][a-z0-9-]{0,63}$`, unique), `title` (one line of plain text, 1 to 64 bytes), `where` (`main` or `settings`), `icon` (a word, optional), `admin` (bool). |
 | `status` | string | no | `stable` (the same as leaving it out), `beta`, `experimental` or `incomplete` ([section 4](#4-status-saying-a-version-is-unfinished)). |
 | `statusNote` | string | for `experimental`, `incomplete` | One line of plain text, at most 500 characters, with no control characters: what isn't done or may break. |
 
@@ -196,7 +196,7 @@ what doesn't work yet, what may break, and what is safe.
 
 The status is the release's own: a server goes by the signed manifest it downloaded, never by what
 a catalogue says. A catalogue entry carries a copy ([section 18](#18-the-catalogue)) so a store can
-show it before anything is downloaded. A server older than module API 4 ignores both fields.
+show it before anything is downloaded.
 
 `wittymodule check` passes an `experimental` or `incomplete` module and prints a warning naming its
 status and note. `Manifest.Unfinished()` says whether a version is one of those two, and
@@ -204,7 +204,7 @@ status and note. `Manifest.Unfinished()` says whether a version is one of those 
 
 ## 5. Delivery kinds
 
-| `delivery` | A release holds | How it runs | `sdui.json` from API 4 |
+| `delivery` | A release holds | How it runs | `sdui.json` |
 |---|---|---|---|
 | `helper` | An archive per system: the program `entry`, any `programs`, an optional part in the browser under `web/`, `module.json`, `sdui.json`, `LICENSE`, `NOTICE`, `THIRD-PARTY-NOTICES.txt`, `README.md` if there is one | A separate process the server starts on first use and talks to over pipes ([section 8](#8-the-helper-protocol)). It may also be a [service](#9-services). The only kind that may answer SDUI data sources | Required |
 | `program` | The same as a helper | The server starts it for one job, in that job's own protocol. It must also answer the hello when started as a helper, so an install can check it runs | Required |
@@ -236,8 +236,8 @@ A version fits a server when all of these hold (`Manifest.Supports`, with the se
 
 **How a server reads `0.N.x`.** `wittymodule` reads a range exactly as above. A server reads any
 pre-1.0 series `0.N.x` as `0.x` (`internal/modules/widen.go`), because before 1.0 the module API
-number decides whether a version fits: a module released beside 0.6 for API 3, with `maxServer:
-0.6.x`, runs on 0.8.0-alpha, which takes API 3 and 4, and a store offers it there. An exact
+number decides whether a version fits: a module released for API 5 with `maxServer: 0.8.x` can run
+on a later 0.N server that still takes API 5, as a version made for an older server. An exact
 `maxServer` is kept as written, and a 1.x server is another line. So set `maxServer` to the series
 you tested with; on a pre-1.0 server it is advice, and the API is the rule.
 
@@ -299,7 +299,7 @@ A helper (and a program, for its hello) speaks this over its standard input and 
 |---|---|
 | `WITTYMODULE_LOG` | `debug`, `info`, `warn`, `error` or `off` |
 | `WITTYMODULE_LOG_TOPICS` | The log topics that are on, comma-separated |
-| `WITTYMODULE_SETTINGS` | The module's server settings with defaults, secrets included, as a JSON object (API 4, [section 12](#12-settings)) |
+| `WITTYMODULE_SETTINGS` | The module's server settings with defaults, secrets included, as a JSON object ([section 12](#12-settings)) |
 | `WITTYMODULE_DATA` | Its own folder to write in, with `data` |
 | `WITTYMODULE_WRITE` | Other folders it may write in, with `data` |
 
@@ -343,7 +343,7 @@ wrong — the process ending, an unreadable line, a size out of range, a wrong `
 — is a **failure**. A panic in a `Serve` handler becomes a call error with code `panic`. A method the
 helper doesn't know should be answered with a call error (a service answers `unknown-method`).
 
-**Notifications** (API 3). A helper may say things unasked, at any time while it is serving, from
+**Notifications.** A helper may say things unasked, at any time while it is serving, from
 any goroutine (`wittymodule.Notify`). A notification has `notify` and no `id`, and nothing answers it:
 
 ```
@@ -400,7 +400,7 @@ connections a browser makes straight to it. Its manifest says `delivery: helper`
    A request with no `X-Witty-User` didn't come from a signed-in person and should be refused.
 6. It answers `service.busy` with whether it has work going on (`Config.Busy`). It is stopped about
    five minutes after its last use unless busy, and one that dies is started again on the next call.
-7. From API 4 it answers the SDUI calls of [section 11](#11-the-sdui-contribution) on the helper
+7. It answers the SDUI calls of [section 11](#11-the-sdui-contribution) on the helper
    protocol through `Config.UI`.
 
 A service is held to a helper's limits, except where its permissions and the server's list allow
@@ -416,19 +416,19 @@ the module API; removing anything from it breaks bundles already released.
 A bundle that fails to load or crashes is reported to the server. Three reports in a day from an
 administrator's browser take that version out of use; anyone else's go in the module's log.
 
-API 3's manifest `pages` are drawn by the bundle at `/m/<module>/<page>`, in the web app only. Each
+The manifest's `pages` are drawn by the bundle at `/m/<module>/<page>`, in the web app only. Each
 page component gets `host`: `request(method, path, body?)` to this server's API with the viewer's
 access (any other address is refused), `user` (`{admin}`), `store` (`get`, `set`: at most 64 KB a key
 and 32 keys, per person and module), and `token()` and `base()` for a stream. `admin: true` only hides
-a page; what it calls must check for itself. From API 4 a module should describe its pages in
+a page; what it calls must check for itself. A module should rather describe its pages in
 `sdui.json` instead, which every app draws, and use a `NativeView` where only its web part can draw
 something.
 
 ## 11. The SDUI contribution
 
-From module API 4, **every module a server installs** (`helper`, `program`, `web`) **must carry
-`sdui.json`**: what it adds to every app, as data the server checks against its catalogue and every
-app draws with its own components. A version built for API 4 without one is refused, and one whose
+**Every module a server installs** (`helper`, `program`, `web`) **must carry `sdui.json`**: what it
+adds to every app, as data the server checks against its catalogue and every app draws with its own
+components. A version without one is refused, and one whose
 file fails the server's checks is refused, unless an administrator agrees to run it without its SDUI
 ([section 22](#22-overrides), kind `incomplete`). The full format is WittyMediaServer's
 **`docs/SDUI-MODULES.md`**; the code is `pkg/sdui/module.go` there, and WittyModule's `sdui` package
@@ -603,7 +603,7 @@ version didn't.
    256 MiB).
 3. Unpack it to a work folder, refusing links, devices, absolute paths and climbing paths.
 4. Check every file against the list, refusing any extra or missing file; then read `sdui.json` and
-   check it against the server's SDUI catalogue (required from API 4).
+   check it against the server's SDUI catalogue (required).
 5. Start the program once with `--wms-helper`; its hello must name the same module, version and API.
 6. Move the folder to `versions/V` in the module's data folder, and save the state atomically.
 7. Switch over: the next call uses the new version, with no restart.
@@ -784,7 +784,7 @@ simply refuses as before). This section is the contract a module and a store can
 
 | Kind | When | Severity |
 |---|---|---|
-| `incomplete` | `status` is `experimental` or `incomplete`; or an API-4 version has no `sdui.json`, or one that fails the server's catalogue (the module then runs **without** its SDUI) | 1 |
+| `incomplete` | `status` is `experimental` or `incomplete`; or a version has no `sdui.json`, or one that fails the server's catalogue (the module then runs **without** its SDUI) | 1 |
 | `out-of-range` | This server is outside `minServer`..`maxServer` while the API is within the server's range ("compatibility mode": the range is ignored) | 2 |
 | `local-file` | Installed from an uploaded file rather than a catalogue | 2 |
 | `custom` | A module ID this server doesn't know | 3 |
@@ -842,14 +842,13 @@ warning: module.json: status: this version says it is incomplete: No settings pa
 It checks the manifest on its own (`Manifest.Problems`), that the folder is named for the module, that
 `api` is one this WittyModule knows and `minServer` isn't older than `0.6.0-alpha`, that a helper's
 `cmd/<entry>` exists (or `CMakeLists.txt` for a program built otherwise), that `package.json`'s
-version matches, `sdui.json` exactly as a server checks it (required from API 4; data sources only on
-a helper), and with `-server` that the version fits that server under the strict reading of
+version matches, `sdui.json` exactly as a server checks it (required; data sources only on a helper), and with `-server` that the version fits that server under the strict reading of
 [section 6](#6-compatibility). The SDUI checker's warnings are printed and don't fail it, and nor does
 an unfinished status, which is printed as a warning. `pack` runs the same checks first.
 
 For a catalogue: `wittymodule catalog-check [-pub key] catalog.json`, and in WittyModuleCatalog
-`scripts/check-api.mjs`, which checks what a server decides: the module API, an API-4 version's
-`minServer`, and `status` with its note.
+`scripts/check-api.mjs`, which checks what a server decides: the module API, a version's
+`minServer`, `integration.json`, and `status` with its note.
 
 ## 24. Older module APIs
 
