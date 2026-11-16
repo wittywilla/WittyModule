@@ -116,20 +116,12 @@ kit/module-kit.sh ../WittyPhotos
 
 GNU Affero General Public License v3.0 (or later): see [LICENSE](LICENSE) and [NOTICE](NOTICE). If you redistribute it or build on it, please keep the NOTICE attribution.
 
-## Legal
-
-WittyModule is an independent open-source project. It isn't associated with, sponsored by or
-endorsed by any publisher, rights holder, service or other media software project. A module built
-with it comes from whoever published that module. Any third-party names here only describe what it
-works with, and belong to their owners. It's provided “as is”, with no warranty; see
-[LICENSE](LICENSE). Local law applies to how you use it. This isn't legal advice.
-
 <!-- module-kit -->
 ## Releasing
 
 WittyModule reaches a server inside the projects built with it, so a release has no files of its own: a version tag runs the tests and publishes a release that those projects can require.
 
-Versions move in small steps as work lands. `go run github.com/wittywilla/wittymodule/cmd/wittymodule@v0.4.0 bump .` raises it
+Versions move in small steps as work lands. `go run github.com/wittywilla/wittymodule/cmd/wittymodule@v0.5.5 bump .` raises it
 everywhere it is written (add `-part minor` for a bigger step). A bump isn't a release: nothing is
 tagged or published until you tag it. CI fails when code changed since the last tag and the version
 didn't, because tags never move.
@@ -143,3 +135,11 @@ To release:
 
 Licensed under AGPL-3.0-or-later: see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 <!-- /module-kit -->
+
+## Legal
+
+WittyModule is an independent open-source project. It isn't associated with, sponsored by or
+endorsed by any publisher, rights holder, service or other media software project. A module built
+with it comes from whoever published that module. Any third-party names here only describe what it
+works with, and belong to their owners. It's provided “as is”, with no warranty; see
+[LICENSE](LICENSE). Local law applies to how you use it. This isn't legal advice.
