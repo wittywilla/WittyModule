@@ -586,15 +586,6 @@ func (in *Integration) Validate(m *Manifest) error {
 	return errors.New(strings.Join(lines, "\n"))
 }
 
-func keysOf(m map[string]bool) []string {
-	ks := make([]string, 0, len(m))
-	for k := range m {
-		ks = append(ks, k)
-	}
-	slices.Sort(ks)
-	return ks
-}
-
 // ParseSize reads "256KB", "4MB".
 func ParseSize(s string) (int64, error) {
 	m := sizeExpr.FindStringSubmatch(s)
