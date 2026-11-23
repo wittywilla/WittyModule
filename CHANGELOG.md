@@ -3,9 +3,14 @@
 What changed in WittyModule, newest first. What changed before it had a repository of its own is in the
 [WittyMediaServer changelog](https://github.com/wittywilla/WittyMediaServer/blob/master/CHANGELOG.md).
 
-## Unreleased
+## 0.5.6
 
-- **WittyModule 0.5.6:** Store and manifest text refuse hidden control and direction characters, and a module's name is checked like the rest. Fuzz tests for the catalogue, manifests, withdrawals and integration files.
+- **Safer store text:** names, descriptions and other store and manifest text refuse hidden control and direction characters, and a module's name is checked like the rest.
+
+## Developer notes for 0.5.6
+
+- Fuzz tests for the catalogue, manifests, withdrawals and integration files.
+- The unused `keysOf` is gone from `integration.go` (staticcheck U1000).
 
 ## 0.5.5
 
