@@ -8,7 +8,7 @@ What a [WittyMediaServer](https://github.com/wittywilla/WittyMediaServer) module
 
 ![The module store in WittyMediaServer](docs/images/module-store.webp)
 
-<sub>What a module becomes: its entry in the store.</sub>
+<sub>What a module becomes: its entry in the store, here from a local test catalogue.</sub>
 
 ![A module's page in the store](docs/images/store-module.webp)
 
