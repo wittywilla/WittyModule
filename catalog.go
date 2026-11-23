@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -485,11 +486,29 @@ func plainText(s string, limit int, lines bool) bool {
 		return false
 	}
 	for _, r := range s {
-		if r == 0x7f || (r < ' ' && !(lines && (r == '\n' || r == '\t'))) {
+		if lines && (r == '\n' || r == '\t') {
+			continue
+		}
+		// Control characters (C0, DEL and C1), and the invisible ones that turn text round
+		// or hide what it says: a name that reads as another module's must not be possible.
+		if unicode.IsControl(r) || hiddenRune(r) {
 			return false
 		}
 	}
 	return true
+}
+
+// hiddenRune is a character that changes how text around it is shown without being seen:
+// direction marks, embeddings, overrides and isolates, and zero-width spaces. The joiners
+// emoji are made with (U+200C, U+200D) stay allowed.
+func hiddenRune(r rune) bool {
+	switch {
+	case r == 0x061c, r == 0x200b, r == 0x200e, r == 0x200f, r == 0x2060, r == 0xfeff:
+		return true
+	case r >= 0x202a && r <= 0x202e, r >= 0x2066 && r <= 0x2069:
+		return true
+	}
+	return false
 }
 
 // Find looks a module up.
