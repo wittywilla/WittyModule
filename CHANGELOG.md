@@ -3,6 +3,10 @@
 What changed in WittyModule, newest first. What changed before it had a repository of its own is in the
 [WittyMediaServer changelog](https://github.com/wittywilla/WittyMediaServer/blob/master/CHANGELOG.md).
 
+## Unreleased
+
+- **WittyModule 0.5.6:** Store and manifest text refuse hidden control and direction characters, and a module's name is checked like the rest. Fuzz tests for the catalogue, manifests, withdrawals and integration files.
+
 ## 0.5.5
 
 - SDUI core synced from the server (a focusable list's rows stay focus stops; a List's rows carry their items' buttons). Text files are checked out with LF, and module-kit gives every module a .gitattributes that says so (#7).
