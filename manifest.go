@@ -225,6 +225,8 @@ func (m *Manifest) Problems() []Problem {
 	}
 	if m.Name == "" {
 		bad("name", "no name")
+	} else if !plainText(m.Name, 64, false) {
+		bad("name", "the name must be one line of plain text, at most 64 bytes, with no hidden characters")
 	}
 	if !Valid(m.Version) {
 		bad("version", "%q is not a version", m.Version)

@@ -5,10 +5,11 @@ What changed in WittyModule, newest first. What changed before it had a reposito
 
 ## 0.5.6
 
-- Nothing changes for modules built with it: this release only tidies the kit's code.
+- **Safer store text:** names, descriptions and other store and manifest text refuse hidden control and direction characters, and a module's name is checked like the rest.
 
 ## Developer notes for 0.5.6
 
+- Fuzz tests for the catalogue, manifests, withdrawals and integration files.
 - The unused `keysOf` is gone from `integration.go` (staticcheck U1000).
 
 ## 0.5.5
